@@ -1,0 +1,66 @@
+{
+  "name": "quicktoken-commercial",
+  "version": "1.0.0",
+  "description": "**A streamlined, self-hosted ERC-20 token deployment toolkit** for creators, devs, and builders looking to launch and manage their own tokens with ease.",
+  "main": "hardhat.config.js",
+  "directories": {
+    "doc": "docs",
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "hardhat test",
+    "compile": "hardhat compile",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:hardhat": "hardhat run scripts/deploy.js --network hardhat",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "verify:sepolia": "hardhat run scripts/verify.js --network sepolia",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "admin:dev": "react-scripts start --prefix admin-dashboard",
+    "admin:build": "react-scripts build --prefix admin-dashboard",
+    "admin:start": "serve -s admin-dashboard/build"
+  },
+  "keywords": [
+    "ethereum",
+    "solidity",
+    "erc20",
+    "token",
+    "blockchain"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
+    "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@types/node": "^22.14.1",
+    "@types/react": "^19.1.1",
+    "@types/react-dom": "^19.1.2",
+    "chai": "^4.2.0",
+    "dotenv": "^16.0.0",
+    "ethers": "^6.13.5",
+    "hardhat": "^2.19.0",
+    "hardhat-gas-reporter": "^1.0.8",
+    "solidity-coverage": "^0.8.0",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@coinbase/wallet-sdk": "^4.3.2",
+    "@openzeppelin/contracts": "^5.3.0",
+    "@tailwindcss/postcss": "^4.1.3",
+    "@walletconnect/web3-provider": "^1.8.0",
+    "autoprefixer": "^10.4.21",
+    "next": "^15.3.0",
+    "postcss": "^8.5.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-scripts": "^5.0.1",
+    "serve": "^14.2.1",
+    "tailwindcss": "^4.1.3"
+  }
+}

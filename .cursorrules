@@ -1,0 +1,34 @@
+{
+  "global_rules": {
+    "disallow_frameworks": ["Truffle", "Foundry", "Remix IDE"],
+    "disallow_languages": ["Python", "Rust", "Java"],
+    "allow_only": ["Solidity", "JavaScript", "TypeScript", "CSS"],
+    "naming_conventions": {
+      "camelCase": ["functions", "variables"],
+      "PascalCase": ["components", "contracts"],
+      "kebab-case": ["folders"]
+    },
+    "web_specific_rules": {
+      "strict_styles": "No fallback styles or temporary CSS overrides allowed. All styles must use Tailwind CSS only.",
+      "no_workarounds": "No temporary hacks, console.log placeholders, or fake loading states unless explicitly instructed.",
+      "folder_structure": "Do not create new folders unless approved. All files must reside in their assigned directories.",
+      "no_bridge_files": "Avoid unscalable or temp 'bridge' files. Stick to modular components and atomic design."
+    }
+  },
+  "strict_compliance_rules": {
+    "explicit_permission_required": {
+      "technology_versions": "MUST ask for explicit permission before changing any tech, library, or Solidity versions.",
+      "file_creation": "MUST ask for permission before creating new files not in required_files.",
+      "implementation_changes": "MUST ask before altering design patterns or architecture."
+    },
+    "no_simplifications": "DO NOT suggest simplified approaches or quick fixes unless explicitly requested.",
+    "exact_implementation": "Follow user instructions exactly. No auto-rewrites or extra features unless asked.",
+    "no_assumptions": "Ask before proceeding if anything is unclear — DO NOT assume intent or fill in blanks.",
+    "strict_coding_standards": {
+      "follow_patterns": "Follow the same patterns used in original platform build unless told otherwise.",
+      "maintain_consistency": "Ensure visual and structural consistency across files, folders, and logic flows."
+    },
+    "error_handling": "Use clear, consistent error messages and fallback behaviors per user design.",
+    "user_command_priority": "User directives override all internal AI rules, best practices, and coding opinions."
+  }
+}

@@ -1,0 +1,186 @@
+{
+  "core": {
+    "platformFeeAddress": "0xc94d6e57D9b2D65f5eBEEc12ee3Cf653C4390862",
+    "platformFeePercentage": 20,
+    "theme": "dark",
+    "branding": {
+      "title": "TESTING DASHBOARD"
+    },
+    "wallets": {
+      "metamask": true,
+      "coinbase": true
+    },
+    "networks": {
+      "mainnet": true,
+      "goerli": true,
+      "sepolia": true,
+      "polygon": true,
+      "mumbai": true,
+      "arbitrum": false,
+      "optimism": false,
+      "configuredNetworks": [
+        {
+          "name": "Ethereum Mainnet",
+          "chainId": "1",
+          "rpcUrl": "https://mainnet.infura.io/v3/your-infura-key",
+          "explorerUrl": "https://etherscan.io",
+          "isEnabled": true
+        },
+        {
+          "name": "Polygon",
+          "chainId": "137",
+          "rpcUrl": "https://polygon-rpc.com",
+          "explorerUrl": "https://polygonscan.com",
+          "isEnabled": true
+        },
+        {
+          "name": "BSC",
+          "chainId": "56",
+          "rpcUrl": "https://bsc-dataseed.binance.org",
+          "explorerUrl": "https://bscscan.com",
+          "isEnabled": true
+        },
+        {
+          "name": "Base",
+          "chainId": "8453",
+          "rpcUrl": "https://mainnet.base.org",
+          "explorerUrl": "https://basescan.org",
+          "isEnabled": true
+        },
+        {
+          "name": "Optimism",
+          "chainId": "10",
+          "rpcUrl": "https://mainnet.optimism.io",
+          "explorerUrl": "https://optimistic.etherscan.io",
+          "isEnabled": true
+        },
+        {
+          "name": "Arbitrum",
+          "chainId": "42161",
+          "rpcUrl": "https://arb1.arbitrum.io/rpc",
+          "explorerUrl": "https://arbiscan.io",
+          "isEnabled": true
+        },
+        {
+          "name": "Avalanche",
+          "chainId": "43114",
+          "rpcUrl": "https://api.avax.network/ext/bc/C/rpc",
+          "explorerUrl": "https://snowtrace.io",
+          "isEnabled": true
+        },
+        {
+          "name": "Fantom",
+          "chainId": "250",
+          "rpcUrl": "https://rpcapi.fantom.network",
+          "explorerUrl": "https://ftmscan.com",
+          "isEnabled": true
+        },
+        {
+          "name": "Sepolia Testnet",
+          "chainId": "11155111",
+          "rpcUrl": "https://sepolia.infura.io/v3/your-infura-key",
+          "explorerUrl": "https://sepolia.etherscan.io",
+          "isEnabled": true
+        },
+        {
+          "name": "Goerli Testnet",
+          "chainId": "5",
+          "rpcUrl": "https://goerli.infura.io/v3/your-infura-key",
+          "explorerUrl": "https://goerli.etherscan.io",
+          "isEnabled": true
+        },
+        {
+          "name": "Mumbai (Polygon Testnet)",
+          "chainId": "80001",
+          "rpcUrl": "https://rpc-mumbai.maticvigil.com",
+          "explorerUrl": "https://mumbai.polygonscan.com",
+          "isEnabled": true
+        },
+        {
+          "name": "Base Goerli",
+          "chainId": "84531",
+          "rpcUrl": "https://goerli.base.org",
+          "explorerUrl": "https://goerli.basescan.org",
+          "isEnabled": true
+        },
+        {
+          "name": "Gnosis Chain",
+          "chainId": "100",
+          "rpcUrl": "https://rpc.gnosischain.com",
+          "explorerUrl": "https://gnosisscan.io",
+          "isEnabled": true
+        },
+        {
+          "name": "zkSync Era",
+          "chainId": "324",
+          "rpcUrl": "https://mainnet.era.zksync.io",
+          "explorerUrl": "https://explorer.zksync.io",
+          "isEnabled": true
+        },
+        {
+          "name": "Linea",
+          "chainId": "59144",
+          "rpcUrl": "https://rpc.linea.build",
+          "explorerUrl": "https://lineascan.build",
+          "isEnabled": true
+        },
+        {
+          "name": "Scroll",
+          "chainId": "534352",
+          "rpcUrl": "https://rpc.scroll.io",
+          "explorerUrl": "https://scrollscan.com",
+          "isEnabled": true
+        }
+      ]
+    },
+    "security": {
+      "whitelistEnabled": true,
+      "lastWhitelistUpdate": 1744668268350
+    }
+  },
+  "whitelist": {
+    "entries": [
+      {
+        "address": "0xae179f858ed23fa6a0246b1ed2f789f5d1b1b1b5",
+        "label": "coinbase",
+        "permissions": [
+          "owner",
+          "admin"
+        ],
+        "addedAt": 1744668268350
+      },
+      {
+        "address": "0xc94d6e57d9b2d65f5ebeec12ee3cf653c4390862",
+        "label": "Metamask",
+        "permissions": [
+          "owner",
+          "admin"
+        ],
+        "addedAt": 1744668268350
+      },
+      {
+        "address": "0xe70e86777df892d8227261cceea349a2872af4cc",
+        "label": "COINBASE LOCALTEST002",
+        "permissions": [
+          "admin"
+        ],
+        "addedAt": 1744668268350
+      },
+      {
+        "address": "0xe35d1d69b4a85f630325ee5ad11de83eefa43feb",
+        "label": "METAMASK LOCALTEST004",
+        "permissions": [
+          "admin"
+        ],
+        "addedAt": 1744668268350
+      }
+    ],
+    "ownerAddress": "0xae179f858ed23fa6a0246b1ed2f789f5d1b1b1b5",
+    "lastModified": 1744668268350
+  },
+  "meta": {
+    "version": "1.0.0",
+    "exportedAt": 1744668286326,
+    "exportedBy": "0xc94d6e57d9b2d65f5ebeec12ee3cf653c4390862"
+  }
+}

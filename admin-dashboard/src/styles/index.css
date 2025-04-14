@@ -1,0 +1,529 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Immediately apply theme on CSS load */
+:root {
+  /* Apply styles based on saved theme */
+  color-scheme: light;
+}
+
+/* Apply dark theme immediately if set */
+html.dark {
+  color-scheme: dark;
+}
+
+/* CSS Variables for Branding */
+:root {
+  /* Default is light theme */
+  --dashboard-title: 'QuickToken Dashboard';
+  
+  /* Theme Variables - Light Theme (default) */
+  --bg-primary: #f9fafb;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f3f4f6;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --border-color: #e5e7eb;
+  --input-bg: #ffffff;
+  --card-bg: #ffffff;
+  --hover-bg: #f3f4f6;
+
+  /* Common theme elements */
+  --primary-blue: #3b82f6;
+  --primary-hover: #2563eb;
+
+  /* Fixed default colors - no longer customizable */
+  --primary-color: #3b82f6;
+  --primary-hover-color: #2563eb;
+  --primary-text-color: white;
+  --primary-focus-ring: rgba(59, 130, 246, 0.5);
+  
+  /* Fixed default logo - no longer customizable */
+  --logo-url: url('/logo.png');
+}
+
+/* Dark Theme - Applied via data-theme attribute */
+[data-theme='dark'], html.dark {
+  --bg-primary: #121212;
+  --bg-secondary: #1e1e1e;
+  --bg-tertiary: #2e2e2e;
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0a0;
+  --border-color: #3e3e3e;
+  --input-bg: #2a2a2a;
+  --card-bg: #252525;
+  --hover-bg: #333333;
+}
+
+/* Immediate dark theme applied via class */
+.dark body {
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+/* Custom Styles */
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
+    'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Branding Styles for UI Components */
+.btn-primary {
+  background-color: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+  color: var(--primary-text-color) !important;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover-color) !important;
+}
+
+button.bg-blue-600 {
+  background-color: var(--primary-color) !important;
+}
+
+button.bg-blue-600:hover, 
+button.hover\:bg-blue-700:hover {
+  background-color: var(--primary-hover-color) !important;
+}
+
+button.focus\:ring-blue-500:focus, 
+.focus\:ring-blue-500:focus {
+  --tw-ring-color: var(--primary-focus-ring) !important;
+}
+
+.text-blue-600 {
+  color: var(--primary-color) !important;
+}
+
+.border-blue-600, .border-blue-500 {
+  border-color: var(--primary-color) !important;
+}
+
+.app-logo {
+  background-image: var(--logo-url);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* Ethereum Address Format */
+.address {
+  font-family: 'Roboto Mono', monospace;
+  letter-spacing: -0.5px;
+}
+
+/* Form Improvements */
+input:focus-visible, select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--primary-focus-ring);
+}
+
+input[type="number"], 
+input[type="text"], 
+input[type="datetime-local"] {
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+}
+
+/* Button Hover Transitions */
+button {
+  transition: all 0.2s ease;
+}
+
+/* Loading Animation */
+.loading {
+  position: relative;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: auto;
+  border: 3px solid transparent;
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: loading-spinner 1s ease infinite;
+}
+
+@keyframes loading-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Network Badge Colors */
+.network-mainnet {
+  background-color: #ecfdf5;
+  color: #065f46;
+}
+
+.network-testnet {
+  background-color: #fffbeb;
+  color: #92400e;
+}
+
+.network-unknown {
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+/* Token Amount Formatting */
+.token-amount {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Wallet connection UI */
+.wallet-option {
+  transition: all 0.2s ease;
+}
+
+.wallet-option:hover {
+  background-color: #f9fafb;
+}
+
+.wallet-option img {
+  object-fit: contain;
+}
+
+/* Tooltip styles */
+.tooltip {
+  position: relative;
+}
+
+.tooltip:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: white;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+/* Card shadow effects */
+.card-hover {
+  transition: all 0.2s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Animation for wallet selection menu */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.wallet-menu {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Button hover transitions */
+button.bg-blue-600 .loading-spinner {
+  border-color: rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+}
+
+button.bg-white .loading-spinner {
+  border-color: rgba(100, 116, 139, 0.3);
+  border-top-color: #64748b;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.3s ease-out forwards;
+}
+
+@keyframes fade-out-down {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+.animate-fade-out-down {
+  animation: fade-out-down 0.3s ease-out forwards;
+}
+
+@layer components {
+  /* Button styles */
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  
+  .btn-primary {
+    @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500;
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-blue-500;
+  }
+  
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+  }
+
+  /* Form styles */
+  .form-group {
+    @apply mb-4;
+  }
+  
+  .form-label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+  
+  .form-input {
+    @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
+    focus:outline-none focus:ring-blue-500 focus:border-blue-500;
+  }
+  
+  .form-helper {
+    @apply mt-1 text-sm text-gray-500;
+  }
+  
+  .form-error {
+    @apply mt-1 text-sm text-red-600;
+  }
+
+  /* Setup wizard styles */
+  .setup-container {
+    @apply max-w-4xl mx-auto bg-white rounded-lg shadow-md overflow-hidden;
+  }
+  
+  .setup-header {
+    @apply bg-gray-50 px-6 py-4 border-b border-gray-200;
+  }
+  
+  .setup-content {
+    @apply p-6;
+  }
+  
+  .step-indicator {
+    @apply flex items-center justify-between w-full max-w-3xl mx-auto mt-8 mb-6;
+  }
+  
+  .step {
+    @apply flex-1 text-center;
+  }
+  
+  .step-dot {
+    @apply h-8 w-8 rounded-full bg-gray-200 text-gray-700 inline-flex items-center justify-center mb-2 font-medium;
+  }
+  
+  .step-active .step-dot {
+    @apply bg-blue-600 text-white;
+  }
+  
+  .step-completed .step-dot {
+    @apply bg-green-500 text-white;
+  }
+  
+  .step-text {
+    @apply text-xs text-gray-500;
+  }
+  
+  .step-active .step-text {
+    @apply text-blue-600 font-medium;
+  }
+  
+  .step-completed .step-text {
+    @apply text-green-600;
+  }
+  
+  /* Network settings styles */
+  .network-button {
+    @apply px-3 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200 transition-colors text-sm;
+  }
+  
+  .network-button.active {
+    @apply bg-blue-100 text-blue-800 border border-blue-300;
+  }
+  
+  /* Config summary styles */
+  .config-summary {
+    @apply bg-gray-50 rounded-lg p-5;
+  }
+  
+  .summary-section {
+    @apply pb-3;
+  }
+  
+  .summary-item {
+    @apply flex justify-between py-2 border-b border-gray-200 last:border-0;
+  }
+  
+  .summary-label {
+    @apply text-gray-600 font-medium;
+  }
+  
+  .summary-value {
+    @apply text-gray-900 font-medium max-w-md truncate text-right;
+  }
+  
+  /* Wallet connect styles */
+  .wallet-option {
+    @apply p-4 border border-gray-200 rounded-md hover:border-blue-500 transition-colors cursor-pointer;
+  }
+  
+  .wallet-option.active {
+    @apply border-blue-500 bg-blue-50;
+  }
+  
+  .wallet-icon {
+    @apply h-8 w-8 mx-auto mb-2;
+  }
+}
+
+/* Theme Preview Styles for Setup Wizard */
+.theme-option {
+  width: 200px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 12px;
+  transition: all 0.2s ease;
+  background: none;
+  text-align: left;
+  display: block;
+  margin: 0 auto;
+  position: relative;
+}
+
+.theme-option:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.theme-option.selected {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+.theme-selected-indicator {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: var(--primary-color);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  border: 1px solid white;
+  animation: pop 0.3s ease-out;
+}
+
+@keyframes pop {
+  0% { transform: scale(0); }
+  70% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.theme-preview {
+  width: 100%;
+  height: 140px;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  margin-bottom: 10px;
+  transition: all 0.3s ease;
+}
+
+.theme-option.selected .theme-preview {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+.theme-header {
+  height: 30px;
+  width: 100%;
+}
+
+.theme-content {
+  height: calc(100% - 30px);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.theme-card {
+  height: 40px;
+  border-radius: 4px;
+}
+
+.theme-label {
+  text-align: center;
+  margin-top: 8px;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* Light theme preview */
+.light-theme {
+  background-color: #f9fafb;
+  color: #111827;
+}
+
+.light-theme .theme-header {
+  background-color: white;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.light-theme .theme-card {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+}
+
+/* Dark theme preview */
+.dark-theme {
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+.dark-theme .theme-header {
+  background-color: #1e1e1e;
+  border-bottom: 1px solid #3e3e3e;
+}
+
+.dark-theme .theme-card {
+  background-color: #1e1e1e;
+  border: 1px solid #3e3e3e;
+} 

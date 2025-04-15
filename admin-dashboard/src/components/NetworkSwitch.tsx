@@ -9,26 +9,17 @@ interface NetworkSwitchProps {
 const NetworkSwitch: React.FC<NetworkSwitchProps> = ({ compact = false }) => {
   const { 
     currentNetwork, 
-    supportedNetworks, 
+    configuredNetworks: supportedNetworks,
     setNetwork, 
     isChangingNetwork,
-    getConfiguredNetworks
   } = useNetwork();
   
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [configuredNetworks, setConfiguredNetworks] = useState<NetworkType[]>([]);
-
-  // Load enabled networks from setup config
-  useEffect(() => {
-    // Use the centralized function from NetworkContext
-    const enabledNetworks = getConfiguredNetworks();
-    setConfiguredNetworks(enabledNetworks);
-  }, [getConfiguredNetworks]);
 
   // Group networks into mainnets and testnets
-  const mainnets = configuredNetworks.filter(network => !network.testnet);
-  const testnets = configuredNetworks.filter(network => network.testnet);
+  const mainnets = supportedNetworks.filter(network => !network.testnet);
+  const testnets = supportedNetworks.filter(network => network.testnet);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -50,7 +41,7 @@ const NetworkSwitch: React.FC<NetworkSwitchProps> = ({ compact = false }) => {
   };
 
   // Get current network or default to first supported network
-  const current = currentNetwork || (configuredNetworks.length > 0 ? configuredNetworks[0] : null);
+  const current = currentNetwork || (supportedNetworks.length > 0 ? supportedNetworks[0] : null);
 
   if (!current) {
     return null; // Or a loading state if preferred

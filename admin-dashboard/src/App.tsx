@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Dashboard from './pages/Dashboard';
-import Settings from './pages/Settings';
+import Settings from '../../pages/settings';
 import SetupWizard, { QuickTokenConfig } from './pages/SetupWizard';
 import AppProviders from './contexts/AppProviders';
 import { loadStaticConfiguration } from './utils/configImport';
 import './styles/index.css';
-import { useNotification } from './contexts/NotificationContext';
 
 // Helper function to apply branding settings to CSS variables
 const applyBrandingStyles = (config: QuickTokenConfig) => {
@@ -23,7 +22,6 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'dashboard' | 'settings'>('dashboard');
   const [configSource, setConfigSource] = useState<'local' | 'static' | 'none'>('none');
   const [isNewSetup, setIsNewSetup] = useState<boolean>(false);
-  const { showNotification } = useNotification();
 
   useEffect(() => {
     async function initializeConfig() {
@@ -93,28 +91,11 @@ const App: React.FC = () => {
     initializeConfig();
   }, []);
 
-  useEffect(() => {
-    if (isNewSetup && setupComplete && config) {
-      // Show a notification reminding the user to export their configuration
-      showNotification(
-        'Remember to export your configuration from the Settings page to make it available to all users.',
-        'info',
-        8000 // Show for 8 seconds
-      );
-      
-      // Reset the flag
-      setIsNewSetup(false);
-    }
-  }, [isNewSetup, setupComplete, config, showNotification]);
-
   const handleSetupComplete = (config: QuickTokenConfig) => {
     saveConfig(config);
     setConfig(config);
     setSetupComplete(true);
     setConfigSource('local');
-    setIsNewSetup(true);
-    
-    // Apply branding settings immediately after setup completes
     applyBrandingStyles(config);
   };
 
@@ -208,33 +189,27 @@ const App: React.FC = () => {
   );
 
   return (
-    <AppProviders>
-      <div className="min-h-screen">
-        {setupComplete && config ? (
-          <>
-            {/* Navigation header */}
-            <NavigationHeader />
-            
-            {/* Main content */}
-            {currentView === 'dashboard' ? (
-              <Dashboard 
-                config={config} 
-                configSource={configSource} 
-                onSwitchView={() => setCurrentView('settings')}
-              />
-            ) : (
-              <Settings 
-                onSwitchView={() => setCurrentView('dashboard')} 
-                config={config}
-                onConfigUpdated={handleConfigUpdate}
-              />
-            )}
-          </>
-        ) : (
-          <SetupWizard onComplete={handleSetupComplete} />
-        )}
-      </div>
-    </AppProviders>
+    <div className="min-h-screen">
+      {setupComplete && config ? (
+        <>
+          {/* Navigation header */}
+          <NavigationHeader />
+          
+          {/* Main content */}
+          {currentView === 'dashboard' ? (
+            <Dashboard 
+              config={config} 
+              configSource={configSource} 
+              onSwitchView={() => setCurrentView('settings')}
+            />
+          ) : (
+            <Settings />
+          )}
+        </>
+      ) : (
+        <SetupWizard onComplete={handleSetupComplete} />
+      )}
+    </div>
   );
 };
 

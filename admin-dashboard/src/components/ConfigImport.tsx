@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useWhitelist } from '../contexts/WhitelistContext';
 import { importConfig } from '../utils/configImport';
-import { useNotification } from '../contexts/NotificationContext';
 
 interface ConfigImportProps {
   className?: string;
@@ -19,7 +18,6 @@ const ConfigImport: React.FC<ConfigImportProps> = ({
   onImportSuccess
 }) => {
   const { isWhitelisted } = useWhitelist();
-  const { showNotification } = useNotification();
   const [file, setFile] = useState<File | null>(null);
   const [importStatus, setImportStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -43,7 +41,7 @@ const ConfigImport: React.FC<ConfigImportProps> = ({
       
       if (result.success) {
         setImportStatus('success');
-        showNotification('Configuration imported successfully!', 'success');
+        console.log('Configuration imported successfully');
         
         // If callback provided, call it
         if (onImportSuccess) {
@@ -57,14 +55,14 @@ const ConfigImport: React.FC<ConfigImportProps> = ({
       } else {
         setImportStatus('error');
         setErrorMessage(result.error || 'Unknown error importing configuration');
-        showNotification(result.error || 'Failed to import configuration', 'error');
+        console.error('Failed to import configuration:', result.error || 'Unknown error');
       }
     } catch (error) {
       console.error('Error importing configuration:', error);
       setImportStatus('error');
       const message = error instanceof Error ? error.message : 'Unknown error';
       setErrorMessage(message);
-      showNotification(`Failed to import configuration: ${message}`, 'error');
+      console.error(`Failed to import configuration: ${message}`);
     }
   };
   

@@ -3,7 +3,6 @@ import { ethers } from 'ethers';
 import { deployToken } from '../lib/deployToken';
 import { TokenDeployParams, DeployedToken } from '../lib/types';
 import { getNetworkName } from '../shared/constants/networks';
-import useNotification from '../hooks/useNotification';
 import { QuickTokenConfig } from '../pages/SetupWizard';
 import HelpIcon from './HelpIcon';
 import { useWallet } from '../hooks/useWallet';
@@ -35,7 +34,7 @@ const DeployForm: React.FC<DeployFormProps> = ({
   const [maxSupply, setMaxSupply] = useState('10000000');
   const [mintFeeBps, setMintFeeBps] = useState('200'); // 2% default
   const [unlockTime, setUnlockTime] = useState(oneMonth.toString());
-  const [platformFeeAddress, setPlatformFeeAddress] = useState('');
+  const [platformFeeAddress, setPlatformFeeAddress] = useState(config.platformFeeAddress || '');
   
   // UI state
   const [isDeploying, setIsDeploying] = useState(false);
@@ -44,8 +43,7 @@ const DeployForm: React.FC<DeployFormProps> = ({
   const [mintFeePercent, setMintFeePercent] = useState('2.00');
   const [networkError, setNetworkError] = useState('');
   
-  // Get notification context with enhanced API
-  const { showNotification } = useNotification();
+  // Get wallet, network and whitelist contexts
   const { address } = useWallet();
   const { getNetworkName: networkContextGetNetworkName } = useNetwork();
   const { isWhitelisted, isOwner } = useWhitelist();
@@ -65,13 +63,6 @@ const DeployForm: React.FC<DeployFormProps> = ({
     }
   }, [chainId, config.networks.configuredNetworks, networkContextGetNetworkName]);
   
-  // Set platform fee address to account when connected
-  useEffect(() => {
-    if (address && !platformFeeAddress) {
-      setPlatformFeeAddress(address);
-    }
-  }, [address, platformFeeAddress]);
-
   // Convert unix timestamp to date string for the input field
   useEffect(() => {
     if (unlockTime) {
@@ -107,45 +98,45 @@ const DeployForm: React.FC<DeployFormProps> = ({
   const validateForm = (): boolean => {
     if (!name || !symbol || !initialSupply || !maxSupply || !mintFeeBps || !unlockTime || !platformFeeAddress) {
       setError('All fields are required');
-      showNotification('All fields are required', 'error');
+      console.error('All fields are required');
       return false;
     }
 
     if (!ethers.isAddress(platformFeeAddress)) {
       setError('Invalid platform fee address');
-      showNotification('Invalid platform fee address', 'error');
+      console.error('Invalid platform fee address');
       return false;
     }
 
     const now = Math.floor(Date.now() / 1000);
     if (parseInt(unlockTime) < now) {
       setError('Unlock time must be in the future');
-      showNotification('Unlock time must be in the future', 'error');
+      console.error('Unlock time must be in the future');
       return false;
     }
 
     if (parseFloat(initialSupply) <= 0 || parseFloat(maxSupply) <= 0) {
       setError('Supply values must be greater than 0');
-      showNotification('Supply values must be greater than 0', 'error');
+      console.error('Supply values must be greater than 0');
       return false;
     }
 
     if (parseFloat(initialSupply) > parseFloat(maxSupply)) {
       setError('Initial supply cannot exceed max supply');
-      showNotification('Initial supply cannot exceed max supply', 'error');
+      console.error('Initial supply cannot exceed max supply');
       return false;
     }
 
     const bps = parseInt(mintFeeBps);
     if (isNaN(bps) || bps < 0 || bps > 10000) {
       setError('Mint fee must be between 0% and 100%');
-      showNotification('Mint fee must be between 0% and 100%', 'error');
+      console.error('Mint fee must be between 0% and 100%');
       return false;
     }
 
     if (networkError) {
       setError(networkError);
-      showNotification(networkError, 'error');
+      console.error(networkError);
       return false;
     }
 
@@ -159,7 +150,7 @@ const DeployForm: React.FC<DeployFormProps> = ({
     
     if (!provider || !account) {
       setError('Please connect your wallet first');
-      showNotification('Please connect your wallet first', 'error');
+      console.error('Please connect your wallet first');
       return;
     }
     
@@ -170,8 +161,8 @@ const DeployForm: React.FC<DeployFormProps> = ({
     setIsDeploying(true);
     setError('');
     
-    // Create transaction notification that we can update
-    const txId = showNotification(`Deploying ${name} token...`, 'info');
+    // Log deployment start
+    console.log(`Deploying ${name} token...`);
     
     try {
       // Prepare deployment parameters
@@ -188,8 +179,8 @@ const DeployForm: React.FC<DeployFormProps> = ({
       // Deploy token
       const token = await deployToken(provider, params);
       
-      // Update notification with success
-      showNotification(`Successfully deployed ${name} (${symbol}) token!`, 'success');
+      // Log deployment success
+      console.log(`Successfully deployed ${name} (${symbol}) token!`);
       
       // Call success callback
       onDeploySuccess(token);
@@ -202,7 +193,7 @@ const DeployForm: React.FC<DeployFormProps> = ({
     } catch (err: any) {
       console.error('Deployment error:', err);
       setError(err.message || 'Error deploying token');
-      showNotification(err.message || 'Error deploying token', 'error');
+      console.error(err.message || 'Error deploying token');
     } finally {
       setIsDeploying(false);
     }
@@ -246,13 +237,8 @@ const DeployForm: React.FC<DeployFormProps> = ({
     );
   }
 
-  // Check if user has permission to modify platform fee address
-  const canEditPlatformFee = isWhitelisted || isOwner;
-  
-  // Debug log for permission checking
-  console.log('DeployForm - Can edit platform fee?', canEditPlatformFee);
-  console.log('DeployForm - Is whitelisted?', isWhitelisted);
-  console.log('DeployForm - Is owner?', isOwner);
+  // Determine if the user has permission to edit platform fees
+  const canEditPlatformFee = isOwner;
 
   return (
     <div id="deploy-section" className="mb-6">
@@ -276,6 +262,7 @@ const DeployForm: React.FC<DeployFormProps> = ({
                     <p className="mt-1">Try to choose a unique, memorable name that reflects your project's purpose.</p>
                   </div>
                 }
+                position="right"
               />
             </label>
             <input
@@ -300,6 +287,7 @@ const DeployForm: React.FC<DeployFormProps> = ({
                     <p className="mt-1">Best practice: use only capital letters for better readability.</p>
                   </div>
                 }
+                position="right"
               />
             </label>
             <input
@@ -324,6 +312,7 @@ const DeployForm: React.FC<DeployFormProps> = ({
                     <p className="mt-1">Note: This number represents whole tokens, not fractional units.</p>
                   </div>
                 }
+                position="right"
               />
             </label>
             <input
@@ -349,6 +338,7 @@ const DeployForm: React.FC<DeployFormProps> = ({
                     <p className="mt-1">Warning: Choose carefully as this limit cannot be changed later!</p>
                   </div>
                 }
+                position="right"
               />
             </label>
             <input
@@ -374,6 +364,7 @@ const DeployForm: React.FC<DeployFormProps> = ({
                     <p className="mt-1">Industry standard: 1-3% for most tokens.</p>
                   </div>
                 }
+                position="right"
               />
             </label>
             <div className="relative">
@@ -414,6 +405,7 @@ const DeployForm: React.FC<DeployFormProps> = ({
                     </ul>
                   </div>
                 }
+                position="right"
               />
             </label>
             <input
@@ -444,24 +436,29 @@ const DeployForm: React.FC<DeployFormProps> = ({
                     )}
                   </div>
                 }
+                position="right"
               />
             </label>
-            <input
-              type="text"
-              value={platformFeeAddress}
-              onChange={(e) => canEditPlatformFee ? setPlatformFeeAddress(e.target.value) : null}
-              placeholder="0x..."
-              className={`w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none ${
-                canEditPlatformFee 
-                  ? 'focus:ring-2 focus:ring-blue-500 focus:border-transparent' 
-                  : 'cursor-not-allowed opacity-80'
-              }`}
-              disabled={!canEditPlatformFee}
-              required
-            />
+            {canEditPlatformFee ? (
+              <input
+                type="text"
+                value={platformFeeAddress}
+                onChange={(e) => setPlatformFeeAddress(e.target.value)}
+                placeholder="0x..."
+                className={`w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                required
+              />
+            ) : (
+              <div 
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-md text-gray-300 font-mono text-sm"
+                aria-label="Platform Fee Address (read-only)"
+              >
+                {platformFeeAddress || 'Not set'}
+              </div>
+            )}
             {!canEditPlatformFee && (
               <p className="mt-1 text-xs text-yellow-500">
-                This field can only be modified by whitelisted admins. Contact an admin for changes.
+                This field can only be modified by the owner account.
               </p>
             )}
           </div>
@@ -480,7 +477,7 @@ const DeployForm: React.FC<DeployFormProps> = ({
         </div>
         
         {/* Submit Button */}
-        <div className="flex justify-end">
+        <div className="flex justify-center">
           <button
             type="submit"
             disabled={isDeploying}

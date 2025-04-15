@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { WhitelistConfig, WhitelistEntry } from '../../contexts/WhitelistContext';
+import { useWallet } from '../../hooks/useWallet';
+import { v4 as uuidv4 } from 'uuid';
 
 interface WhitelistSetupStepProps {
   onComplete: (finalConfig: WhitelistConfig) => void;
@@ -25,28 +27,27 @@ const WhitelistSetupStep: React.FC<WhitelistSetupStepProps> = ({
   initialConfig, 
   onBack 
 }) => {
+  const { address: account, isConnected } = useWallet();
   const [entries, setEntries] = useState<InternalEntry[]>([]);
   const [newAddress, setNewAddress] = useState('');
   const [newLabel, setNewLabel] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [selectedRole, setSelectedRole] = useState('admin');
+  const [ownerAddress, setOwnerAddress] = useState('');
+  const [isEnabled, setIsEnabled] = useState(true);
   
   useEffect(() => {
-    console.log("WhitelistSetupStep received initialConfig:", initialConfig);
-    if (initialConfig && initialConfig.entries && Array.isArray(initialConfig.entries)) {
-      const formattedEntries = initialConfig.entries.map(entry => ({
-        address: entry.address.toLowerCase(),
-        label: entry.label,
-        permissions: entry.permissions
-      }));
+    if (initialConfig && initialConfig.entries) {
+      const formattedEntries = initialConfig.entries.map(entry => ({ ...entry, id: uuidv4() }));
       setEntries(formattedEntries);
-      console.log("Initialized entries from initialConfig:", formattedEntries);
+      setOwnerAddress(initialConfig.ownerAddress || '');
+      setIsEnabled(initialConfig.whitelistEnabled ?? true);
     } else {
-      console.log("No valid initialConfig provided, starting fresh.");
+      setOwnerAddress(account || '');
       setEntries([]);
     }
-  }, [initialConfig]);
+  }, [initialConfig, account]);
   
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -128,10 +129,10 @@ const WhitelistSetupStep: React.FC<WhitelistSetupStepProps> = ({
         addedAt: Date.now(),
       })),
       ownerAddress: primaryOwner ? primaryOwner.address : '',
-      lastModified: Date.now()
+      lastModified: Date.now(),
+      whitelistEnabled: isEnabled
     };
     
-    console.log("Completing Whitelist Step with config:", finalConfig);
     onComplete(finalConfig);
   };
   

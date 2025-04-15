@@ -49,7 +49,7 @@ function safelyParseJSON(key: string, defaultValue: any = {}) {
  * @returns Complete dashboard configuration
  */
 export function assembleExportableConfig(
-    coreConfig: QuickTokenConfig | undefined | null, 
+    coreConfig: QuickTokenConfig,
     exporterAddress: string
   ): DashboardConfiguration {
   
@@ -58,7 +58,7 @@ export function assembleExportableConfig(
   // const connectedAddress = localStorage.getItem(LAST_CONNECTED_ADDRESS_KEY) || ''; // No longer needed
   
   return {
-    core: coreConfig || {}, // Use passed-in coreConfig, default to {} if null/undefined
+    core: coreConfig,
     whitelist: whitelistConfig,
     meta: {
       version: '1.0.0', // Current dashboard version

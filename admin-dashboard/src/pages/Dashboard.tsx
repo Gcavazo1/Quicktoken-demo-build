@@ -1,20 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ethers } from 'ethers';
 import DeployForm from '../components/DeployForm';
 import TokenTable from '../components/TokenTable';
 import ConfirmDialog from '../components/ConfirmDialog';
 import NetworkSelector from '../components/NetworkSelector';
 import { useTokens } from '../contexts/TokenContext';
-import useNotification from '../hooks/useNotification';
-import WalletConnector, { WalletType } from '../services/WalletConnector';
+import { WalletConnector, EIP6963ProviderDetail, EIP6963ProviderInfo } from '../services/WalletConnector';
 import { QuickTokenConfig } from './SetupWizard';
-import { Provider } from '../lib/types/web3';
 import { getNetworkName, getNetworkBadgeClass } from '../shared/constants/networks';
 import { DeployedToken } from '../lib/types/tokens';
 import { useTheme } from '../contexts/ThemeContext';
 import { truncateAddress } from '../utils/format';
 import { useWhitelist } from '../contexts/WhitelistContext';
 import AdminBadge from '../components/AdminBadge';
+import { Button } from '../components/Button';
+import { Loader2 } from 'lucide-react';
+import WalletSelectorModal from '../components/WalletSelectorModal';
+import { useWallet } from '../hooks/useWallet';
+import { useNetwork, NetworkType } from '../contexts/NetworkContext';
 
 // Add type definition for window.ethereum
 declare global {
@@ -34,24 +37,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   configSource = 'local',
   onSwitchView
 }) => {
-  // Theme context
+  // --- STATE HOOKS ---
   const { setTheme } = useTheme();
-  
-  // State for wallet connection
-  const [provider, setProvider] = useState<Provider | null>(null);
-  const [account, setAccount] = useState<string | null>(null);
-  const [chainId, setChainId] = useState<number | null>(null);
-  const [isConnecting, setIsConnecting] = useState<boolean>(false);
-  const [walletType, setWalletType] = useState<WalletType | null>(null);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [showResetDialog, setShowResetDialog] = useState<boolean>(false);
-  
-  // State for selected network
-  const [selectedNetworkChainId, setSelectedNetworkChainId] = useState<string>('');
-  
-  const { showSuccess, showError, showInfo, showWarning, showTransaction } = useNotification();
-  
-  // Token context
+  const [showWalletSelector, setShowWalletSelector] = useState<boolean>(false);
+  const [availableProviders, setAvailableProviders] = useState<EIP6963ProviderDetail[]>([]);
+
+  // --- OTHER HOOKS & INSTANCES ---
   const {
     tokens,
     ownedTokens,
@@ -61,257 +53,128 @@ const Dashboard: React.FC<DashboardProps> = ({
     performTokenAction,
     refreshNetworkTokens
   } = useTokens();
-
-  // Get whitelist status to check if the user is whitelisted
   const { isWhitelisted, isOwner } = useWhitelist();
+  const connector = WalletConnector;
+  const wallet = useWallet();
+  const { currentNetwork, setNetwork: setContextNetwork } = useNetwork();
 
-  // Add a state to track if the banner has been dismissed
-  const [exportReminderDismissed, setExportReminderDismissed] = useState<boolean>(
-    localStorage.getItem('quicktoken_export_reminder_dismissed') === 'true'
-  );
-
-  // Apply theme from config when component mounts
-  useEffect(() => {
-    // Simply update the theme context with the config value
-    if (config.theme && (config.theme === 'light' || config.theme === 'dark')) {
-      setTheme(config.theme);
+  // --- Add Helper Function from WalletSelectorModal --- 
+  const getWalletIcon = (providerInfo: EIP6963ProviderInfo): string => {
+    // Prioritize specific RDNS matches for custom icons
+    if (providerInfo.rdns === 'io.metamask') {
+      return '/images/metamask-logo.png';
     }
-  }, [config.theme, setTheme]);
-
-  // Set initial selected network on component mount
-  useEffect(() => {
-    if (config.networks.configuredNetworks.length > 0) {
-      // Find an enabled network to use as default
-      const enabledNetworks = config.networks.configuredNetworks.filter(n => n.isEnabled);
-      if (enabledNetworks.length > 0) {
-        setSelectedNetworkChainId(enabledNetworks[0].chainId);
-      }
+    if (providerInfo.rdns === 'com.coinbase.wallet') {
+      return '/images/coinbase-logo.png';
     }
-  }, [config.networks.configuredNetworks]);
-
-  // Check if wallet was previously connected on component mount
-  useEffect(() => {
-    checkConnection();
-    
-    // Add event listeners for account and chain changes
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', handleAccountsChanged);
-      window.ethereum.on('chainChanged', handleChainChanged);
+  
+    // If no RDNS match, try to use the provided icon if it seems valid
+    const isValidIcon = providerInfo.icon && (providerInfo.icon.startsWith('data:image') || /\.(svg|png|jpe?g|webp)$/i.test(providerInfo.icon));
+    if (isValidIcon) {
+      return providerInfo.icon;
     }
     
-    return () => {
-      // Clean up event listeners on unmount
-      if (window.ethereum) {
-        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-        window.ethereum.removeListener('chainChanged', handleChainChanged);
-      }
-    };
-  }, []);
-
-  // Check existing wallet connection
-  const checkConnection = async () => {
-    const { provider: connectedProvider, account: connectedAccount, chainId: connectedChainId } = 
-      await WalletConnector.getConnectionState();
-    
-    if (connectedProvider && connectedAccount) {
-      setProvider(connectedProvider);
-      setAccount(connectedAccount);
-      setChainId(connectedChainId);
-      setWalletType(WalletConnector.getWalletType());
-    }
+    // Final fallback: return original icon or a default placeholder
+    // return '/images/default-wallet.png'; // Example placeholder
+    return providerInfo.icon; // Return original icon data even if it might not render
   };
 
-  // Handle account changes from wallet
-  const handleAccountsChanged = (accounts: string[]) => {
-    if (accounts.length === 0) {
-      // User disconnected their wallet
-      handleDisconnect();
-    } else if (accounts[0] !== account) {
-      setAccount(accounts[0]);
-    }
-  };
-
-  // Handle chain/network changes from wallet
-  const handleChainChanged = (chainIdHex: string) => {
-    const newChainId = parseInt(chainIdHex, 16);
-    setChainId(newChainId);
-    
-    // Update selected network if it matches one of our configured networks
-    const matchingNetwork = config.networks.configuredNetworks.find(
-      network => network.chainId === newChainId.toString()
-    );
-    
-    if (matchingNetwork) {
-      setSelectedNetworkChainId(matchingNetwork.chainId);
-    }
-  };
-
-  // Connect wallet
-  const handleConnect = async (type: WalletType) => {
-    setIsConnecting(true);
-    setConnectionError(null);
-    
-    try {
-      const { provider: connectedProvider, account: connectedAccount, chainId: connectedChainId, error } = 
-        await WalletConnector.connect(type);
-      
-      if (error) {
-        setConnectionError(error);
-        return;
-      }
-      
-      if (connectedProvider && connectedAccount) {
-        setProvider(connectedProvider);
-        setAccount(connectedAccount);
-        setChainId(connectedChainId);
-        setWalletType(type);
-      }
-    } catch (error) {
-      console.error('Connection error:', error);
-      setConnectionError('Failed to connect wallet');
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  // Disconnect wallet
-  const handleDisconnect = () => {
-    WalletConnector.disconnect();
-    setProvider(null);
-    setAccount(null);
-    setChainId(null);
-    setWalletType(null);
-  };
-
-  // Handle token action
+  // --- CALLBACK HOOKS ---
   const handleTokenAction = (token: DeployedToken) => {
-    // We can implement token management logic here
-    console.log('Managing token:', token);
+    // console.log('Managing token:', token);
   };
 
-  // Show reset wizard dialog
   const handleShowResetDialog = () => {
     setShowResetDialog(true);
   };
 
-  // Handle reset wizard confirmation
   const handleResetConfirm = () => {
-    // Remove localStorage items and reload
     try {
-      // Clear all QuickToken related items
       localStorage.removeItem('quicktoken_setup_complete');
       localStorage.removeItem('quicktoken_config');
       localStorage.removeItem('quicktokens');
-      localStorage.removeItem('quicktoken_theme'); // Remove theme setting
+      localStorage.removeItem('quicktoken_theme');
       
-      // Force reset to light theme before reload
       document.documentElement.classList.remove('dark');
       document.documentElement.setAttribute('data-theme', 'light');
       document.body.style.backgroundColor = '';
       document.body.style.color = '';
       
-      showInfo('Settings reset. Returning to setup wizard...');
+      console.log('Settings reset. Returning to setup wizard...');
       
-      // Ensure localStorage is cleared before reload by using a synchronous approach
       setTimeout(() => {
-        window.location.href = window.location.pathname; // Force a clean reload
+        window.location.href = window.location.pathname;
       }, 1500);
     } catch (error) {
       console.error('Failed to reset settings:', error);
-      showError('Failed to reset settings. Please try again.');
+      console.log('Failed to reset settings. Please try again.');
     }
-    
     setShowResetDialog(false);
   };
 
-  // Handle reset wizard cancellation
   const handleResetCancel = () => {
     setShowResetDialog(false);
   };
 
-  // Handle network selection
   const handleNetworkSelect = async (chainIdStr: string) => {
-    setSelectedNetworkChainId(chainIdStr);
-    
-    // Convert string chainId to number
-    const selectedChainIdNum = parseInt(chainIdStr);
-    
-    // If connected to wallet and current chain doesn't match selected, try to switch
-    if (isConnected && chainId !== null && selectedChainIdNum !== chainId) {
-      try {
-        // Find the network in configured networks
-        const network = config.networks.configuredNetworks.find(n => n.chainId === chainIdStr);
-        
-        if (!network) {
-          showWarning('Selected network is not configured');
-          return;
-        }
-        
-        // Request chain switch in wallet
-        try {
-          await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: `0x${parseInt(chainIdStr).toString(16)}` }],
-          });
-          
-          // Chain switch successful, refresh tokens
-          setTimeout(() => {
-            refreshNetworkTokens();
-          }, 1000); // Small delay to ensure chain is fully switched
-        } catch (switchError: any) {
-          // Chain doesn't exist in wallet, try to add it
-          if (switchError.code === 4902) {
-            try {
-              const addChainParam = {
-                chainId: `0x${parseInt(chainIdStr).toString(16)}`,
-                chainName: network.name,
-                nativeCurrency: {
-                  name: 'Ether',
-                  symbol: 'ETH',
-                  decimals: 18
-                },
-                rpcUrls: [network.rpcUrl],
-                blockExplorerUrls: network.explorerUrl ? [network.explorerUrl] : undefined
-              };
-              
-              await window.ethereum.request({
-                method: 'wallet_addEthereumChain',
-                params: [addChainParam],
-              });
-              
-              // Chain add successful, refresh tokens after a delay
-              setTimeout(() => {
-                refreshNetworkTokens();
-              }, 1000); // Small delay to ensure network is fully added
-            } catch (error) {
-              console.error('Failed to add network:', error);
-              showWarning(`Failed to add network: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
-          } else {
-            throw switchError;
-          }
-        }
-      } catch (error: any) {
-        console.error('Failed to switch network:', error);
-        showWarning(`Failed to switch network: ${error.message}`);
-      }
+    const targetNetwork = config.networks.configuredNetworks.find(n => n.chainId === chainIdStr);
+    if (targetNetwork) {
+      const networkInfo: NetworkType = {
+        chainId: parseInt(targetNetwork.chainId),
+        name: targetNetwork.name,
+        shortName: targetNetwork.shortName || targetNetwork.name,
+        isTestnet: targetNetwork.testnet ?? false,
+        testnet: targetNetwork.testnet ?? false,
+        currency: {
+          name: targetNetwork.currencySymbol || 'ETH',
+          symbol: targetNetwork.currencySymbol || 'ETH',
+          decimals: 18
+        },
+        rpcUrl: targetNetwork.rpcUrl || '',
+        blockExplorerUrl: targetNetwork.explorerUrl || '',
+        explorerUrl: targetNetwork.explorerUrl || ''
+      };
+      await setContextNetwork(networkInfo);
+    } else {
+      console.log(`Network with ID ${chainIdStr} not found in configuration.`);
     }
   };
 
-  // Check if wallet is connected
-  const isConnected = !!account && !!provider;
+  const handleProvidersUpdate = useCallback(() => {
+    const connectorInstance = WalletConnector.getInstance();
+    const providersMap = connectorInstance.getDiscoveredProviders();
+    setAvailableProviders(Array.from(providersMap.values()));
+    if (providersMap.size === 0 && !connectorInstance.isDiscoveryComplete()) {
+      console.log("Discovering wallets... Please wait a moment.");
+    }
+    setShowWalletSelector(true);
+  }, []);
 
-  // Get network from selected chain ID
-  const selectedNetwork = config.networks.configuredNetworks.find(
-    network => network.chainId === selectedNetworkChainId
-  );
+  const handleShowWalletSelector = useCallback(() => {
+    const connectorInstance = WalletConnector.getInstance();
+    const providersMap = connectorInstance.getDiscoveredProviders();
+    setAvailableProviders(Array.from(providersMap.values()));
+    if (providersMap.size === 0 && !connectorInstance.isDiscoveryComplete()) {
+      console.log("Discovering wallets... Please wait a moment.");
+    }
+    setShowWalletSelector(true);
+  }, []);
 
-  // Add a function to dismiss the reminder
-  const dismissExportReminder = () => {
-    localStorage.setItem('quicktoken_export_reminder_dismissed', 'true');
-    setExportReminderDismissed(true);
-  };
+  // --- SIDE EFFECTS HOOK ---
+  useEffect(() => {
+    window.addEventListener('walletProvidersUpdated', handleProvidersUpdate);
+    return () => {
+      window.removeEventListener('walletProvidersUpdated', handleProvidersUpdate);
+    };
+  }, [handleProvidersUpdate]);
 
+  useEffect(() => {
+      if (config.theme && (config.theme === 'light' || config.theme === 'dark')) {
+        setTheme(config.theme);
+      }
+  }, [config.theme, setTheme]);
+
+  // --- RENDER ---
   return (
     <div className="min-h-screen flex flex-col bg-primary text-primary">
       {/* Header */}
@@ -335,66 +198,43 @@ const Dashboard: React.FC<DashboardProps> = ({
                     Reset Wizard
                   </button>
                 )}
-                <button
-                  onClick={() => showSuccess('Test notification system!')}
-                  className="flex items-center text-sm text-blue-400 bg-tertiary px-3 py-1 rounded-md border border-border hover:bg-hover transition-colors"
-                  title="Test the notification system"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                  Test Notification
-                </button>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <NetworkSelector
-                currentChainId={chainId ? parseInt(chainId.toString()) : null}
-                onNetworkChange={(newChainId) => handleNetworkSelect(newChainId.toString())}
-                showTestnets={true}
+                currentChainId={wallet.chainId}
+                onNetworkChange={(id) => handleNetworkSelect(id.toString())}
                 className="w-60"
               />
-              {isConnected && (
-                <div className="flex items-center">
-                  {/* Account info */}
-                  <div className="bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg shadow-sm border dark:border-gray-600 flex items-center">
-                    <span className="px-3 py-2 flex items-center text-sm font-medium">
-                      {walletType === 'metamask' && (
-                        <img 
-                          src="/images/metamask-logo.png" 
-                          alt="MetaMask" 
-                          className="h-4 w-4 mr-1.5 object-contain" 
-                        />
-                      )}
-                      {walletType === 'coinbase' && (
-                        <img 
-                          src="/images/coinbase-logo.png" 
-                          alt="Coinbase Wallet" 
-                          className="h-4 w-4 mr-1.5 object-contain" 
-                        />
-                      )}
-                      {walletType === 'wallet-connect' && (
-                        <img 
-                          src="/images/walletconnect-logo.png" 
-                          alt="WalletConnect" 
-                          className="h-4 w-4 mr-1.5 object-contain" 
-                        />
-                      )}
-                      {truncateAddress(account)}
-                      {isWhitelisted && <AdminBadge className="ml-2" />}
-                    </span>
-                    
-                    {/* Disconnect button */}
-                    <button
-                      onClick={handleDisconnect}
-                      className="border-l dark:border-gray-600 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors rounded-r-lg"
-                      aria-label="Disconnect wallet"
-                    >
+              {wallet.isConnected && (
+                <div className="flex items-center space-x-4">
+                  <img 
+                    src={wallet.walletInfo ? getWalletIcon(wallet.walletInfo) : ''}
+                    alt={wallet.walletInfo?.name} 
+                    className="w-5 h-5 rounded-full object-contain"
+                  />
+                  <span className="text-sm font-medium text-primary dark:text-gray-300">
+                    {wallet.walletInfo?.name} ({truncateAddress(wallet.address ?? '')})
+                  </span>
+                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full dark:bg-blue-900 dark:text-blue-200">
+                    Chain: {wallet.chainId}
+                  </span>
+                  <Button
+                    onClick={wallet.disconnectWallet}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center space-x-2 text-secondary hover:text-primary dark:text-gray-300 dark:hover:text-white"
+                    disabled={wallet.isConnecting}
+                  >
+                    {wallet.isConnecting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 11-6 0v-1m6 0H9" />
                       </svg>
-                    </button>
-                  </div>
+                    )}
+                    <span>{wallet.isConnecting ? 'Disconnecting...' : 'Disconnect'}</span>
+                  </Button>
                 </div>
               )}
             </div>
@@ -404,44 +244,11 @@ const Dashboard: React.FC<DashboardProps> = ({
       
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8 flex-1">
-        {/* Export Configuration Reminder for Admins */}
-        {isWhitelisted && !exportReminderDismissed && configSource === 'local' && (
-          <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-5 mb-6 flex justify-between items-center">
-            <div className="flex-1">
-              <h3 className="text-yellow-800 font-bold text-lg">Important Administrator Action Required</h3>
-              <p className="text-yellow-700 mt-1">
-                Your dashboard setup is complete, but you need to export your configuration to make it available to all users.
-                Without this critical step, other users will see the setup wizard instead of your configured dashboard.
-              </p>
-              <ul className="list-disc ml-5 mt-2 text-yellow-700">
-                <li className="mb-1">Go to Settings → Export Configuration tab</li>
-                <li className="mb-1">Download the configuration file</li>
-                <li className="mb-1">Add it to your project at <code className="px-1.5 py-0.5 bg-yellow-100 rounded text-sm font-mono">/public/dashboard-config.json</code></li>
-                <li>Deploy the updated project to your hosting provider</li>
-              </ul>
-            </div>
-            <div className="flex flex-col space-y-2 ml-4">
-              <button 
-                onClick={onSwitchView} 
-                className="px-4 py-2 bg-yellow-600 text-white text-sm rounded-md hover:bg-yellow-700 font-medium"
-              >
-                Go to Settings →
-              </button>
-              <button 
-                onClick={dismissExportReminder}
-                className="px-2 py-1 text-yellow-700 text-sm hover:text-yellow-900"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
-        
-        {isConnected ? (
+        {wallet.isConnected ? (
           <div className="flex flex-col gap-6">
-            {connectionError && (
+            {wallet.error && (
               <div className="bg-red-900/30 border border-red-800 text-red-200 p-4 rounded-lg">
-                {connectionError}
+                {wallet.error}
               </div>
             )}
             
@@ -451,7 +258,6 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
             )}
             
-            {/* Deploy Form */}
             <div id="deploy-section" className="bg-secondary rounded-lg overflow-hidden border border-border shadow-md">
               <div className="px-6 py-5 border-b border-border flex justify-between items-center">
                 <div>
@@ -464,24 +270,23 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
                 <div className="text-sm text-secondary">
                   <span className="bg-tertiary px-2 py-1 rounded text-blue-400 font-medium">
-                    {chainId ? getNetworkName(chainId) : 'Not Connected'}
+                    {currentNetwork?.name || (wallet.chainId ? getNetworkName(wallet.chainId) : 'Not Connected')}
                   </span>
                 </div>
               </div>
               <div className="p-6">
                 <DeployForm
-                  provider={provider}
-                  account={account}
-                  chainId={chainId}
+                  provider={wallet.provider}
+                  account={wallet.address}
+                  chainId={wallet.chainId}
                   onDeploySuccess={() => {
-                    // Token state is managed by TokenContext
+                    refreshNetworkTokens();
                   }}
                   config={config}
                 />
               </div>
             </div>
             
-            {/* Token Table */}
             <div className="bg-secondary rounded-lg overflow-hidden border border-border shadow-md">
               <div className="px-6 py-5 border-b border-border">
                 <h2 className="text-lg font-medium text-primary">
@@ -493,103 +298,38 @@ const Dashboard: React.FC<DashboardProps> = ({
               </div>
               <div>
                 <TokenTable
-                  provider={provider}
+                  provider={wallet.provider}
                   onManageToken={handleTokenAction}
-                  account={account}
+                  account={wallet.address}
                   tokens={ownedTokens}
                 />
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold mb-2 text-primary">Connect Your Wallet</h2>
-              <p className="text-secondary max-w-lg">
-                Connect your wallet to deploy and manage ERC-20 tokens.
-                Choose from the supported wallet providers below.
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl">
-              {config.wallets.metamask && (
-                <button
-                  onClick={() => handleConnect('metamask')}
-                  disabled={isConnecting}
-                  className="bg-secondary hover:bg-hover border border-border rounded-lg p-4 text-left transition-colors"
-                >
-                  <div className="flex items-center mb-2">
-                    <img 
-                      src="/images/metamask-logo.png" 
-                      alt="MetaMask" 
-                      className="w-8 h-8 mr-3" 
-                    />
-                  </div>
-                  <p className="text-sm text-secondary">
-                    Connect using MetaMask browser extension
-                  </p>
-                </button>
-              )}
-              
-              {config.wallets.coinbase && (
-                <button
-                  onClick={() => handleConnect('coinbase')}
-                  disabled={isConnecting}
-                  className="bg-secondary hover:bg-hover border border-border rounded-lg p-4 text-left transition-colors"
-                >
-                  <div className="flex items-center mb-2">
-                    <img 
-                      src="/images/coinbase-logo.png" 
-                      alt="Coinbase Wallet" 
-                      className="w-8 h-8 mr-3" 
-                    />
-                  </div>
-                  <p className="text-sm text-secondary">
-                    Connect with Coinbase Wallet
-                  </p>
-                </button>
-              )}
-              
-              {config.wallets.walletconnect && (
-                <button
-                  onClick={() => handleConnect('wallet-connect')}
-                  disabled={isConnecting}
-                  className="bg-secondary hover:bg-hover border border-border rounded-lg p-4 text-left transition-colors"
-                >
-                  <div className="flex items-center mb-2">
-                    <img
-                      src="/images/walletconnect-logo.png"
-                      alt="WalletConnect"
-                      className="w-8 h-8 mr-3"
-                    />
-                  </div>
-                  <p className="text-sm text-secondary">
-                    Connect with WalletConnect
-                  </p>
-                </button>
-              )}
-            </div>
-            
-            {isConnecting && (
-              <div className="mt-6 flex items-center text-secondary">
-                <svg className="animate-spin h-5 w-5 mr-2 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Connecting...
-              </div>
-            )}
-            
-            {connectionError && (
-              <div className="mt-6 p-3 bg-red-900/30 border border-red-800 text-red-200 rounded-md max-w-2xl">
-                {connectionError}
+          <div className="text-center py-20">
+            <h2 className="text-2xl font-semibold text-primary mb-4">Wallet Not Connected</h2>
+            <p className="text-secondary mb-6">Please connect your wallet to manage tokens.</p>
+            <Button
+              onClick={handleShowWalletSelector}
+              disabled={wallet.isConnecting}
+              variant="default"
+              size="lg"
+            >
+              {wallet.isConnecting ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : null}
+              {wallet.isConnecting ? 'Connecting...' : 'Connect Wallet'}
+            </Button>
+            {wallet.error && (
+              <div className="mt-6 p-3 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-200 rounded-md max-w-md mx-auto">
+                {wallet.error}
               </div>
             )}
           </div>
         )}
       </main>
       
-      {/* Reset Confirmation Dialog */}
       <ConfirmDialog
         isOpen={showResetDialog}
         title="Reset Dashboard Configuration"
@@ -599,6 +339,14 @@ const Dashboard: React.FC<DashboardProps> = ({
         onConfirm={handleResetConfirm}
         onCancel={handleResetCancel}
         variant="danger"
+      />
+
+      <WalletSelectorModal
+        isOpen={showWalletSelector}
+        onClose={() => setShowWalletSelector(false)}
+        providers={availableProviders}
+        onConnect={(providerDetail) => wallet.connectWallet(providerDetail.info.rdns)}
+        isLoading={wallet.isConnecting}
       />
     </div>
   );

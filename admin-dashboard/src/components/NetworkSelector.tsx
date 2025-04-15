@@ -1,6 +1,6 @@
-import React, { useState, useEffect, ReactNode } from 'react';
+import React, { useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import { useNetwork } from '../contexts/NetworkContext';
-import { getNetworkBadgeClass } from '../shared/constants/networks';
+import { getNetworkBadgeClass, getNetworkName, getNetworkShortName, NetworkInfo } from '../shared/constants/networks';
 import type { NetworkType } from '../contexts/NetworkContext';
 
 interface NetworkSelectorProps {
@@ -19,34 +19,35 @@ const NetworkSelector: React.FC<NetworkSelectorProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   
   const {
-    supportedNetworks,
     currentNetwork,
     getNetworkByChainId: isNetworkConfigured,
     setNetwork,
     isChangingNetwork,
-    getConfiguredNetworks
+    configuredNetworks,
+    isConfigLoading
   } = useNetwork();
 
-  // State for configured networks from setup
-  const [configuredNetworks, setConfiguredNetworks] = useState<NetworkType[]>([]);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [configuredNetworksState, setConfiguredNetworksState] = useState<NetworkInfo[]>([]);
+
+  // Update local state when context changes
+  useEffect(() => {
+    // Use the configuredNetworks array from the context
+    setConfiguredNetworksState(configuredNetworks || []);
+  }, [configuredNetworks]);
+
+  // Group networks into mainnets and testnets
   const [mainnets, setMainnets] = useState<NetworkType[]>([]);
   const [testnets, setTestnets] = useState<NetworkType[]>([]);
 
-  // Load enabled networks from setup config
   useEffect(() => {
-    // Use the centralized function from NetworkContext
-    const enabledNetworks = getConfiguredNetworks();
-    setConfiguredNetworks(enabledNetworks);
-  }, [getConfiguredNetworks]);
-
-  // Group networks into mainnets and testnets
-  useEffect(() => {
-    const mainnetNetworks = configuredNetworks.filter(network => !network.testnet);
-    const testnetNetworks = configuredNetworks.filter(network => network.testnet);
+    const mainnetNetworks = configuredNetworksState.filter(network => !network.testnet);
+    const testnetNetworks = configuredNetworksState.filter(network => network.testnet);
     
     setMainnets(mainnetNetworks);
     setTestnets(testnetNetworks);
-  }, [configuredNetworks]);
+  }, [configuredNetworksState]);
   
   // Lock scrolling when modal is open
   useEffect(() => {
@@ -66,7 +67,7 @@ const NetworkSelector: React.FC<NetworkSelectorProps> = ({
       onNetworkChange(chainId);
     } else {
       // If no onChange handler provided, try to switch network directly
-      const network = configuredNetworks.find(n => n.chainId === chainId);
+      const network = configuredNetworksState.find(n => n.chainId === chainId);
       if (network) {
         setNetwork(network);
       }
@@ -76,7 +77,7 @@ const NetworkSelector: React.FC<NetworkSelectorProps> = ({
   // Determine the current network name to display
   const getCurrentNetworkDisplay = () => {
     if (currentChainId) {
-      const network = configuredNetworks.find(n => n.chainId === currentChainId);
+      const network = configuredNetworksState.find(n => n.chainId === currentChainId);
       if (network) {
         return (
           <div className="flex items-center">
@@ -258,250 +259,262 @@ const NetworkSelector: React.FC<NetworkSelectorProps> = ({
               flex: '1 1 auto',
               backgroundColor: '#1e1e1e'
             }}>
-              {/* Current Network */}
-              {currentNetwork && (
-                <div style={{
-                  padding: '10px 20px 5px 20px'
-                }}>
-                  <p style={{
-                    margin: '0 0 8px 0',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    color: '#a0a0a0',
-                    letterSpacing: '0.5px'
-                  }}>
-                    Currently Connected
-                  </p>
-                  <div style={{
-                    backgroundColor: currentNetwork.testnet ? '#2d2718' : '#1b2c1e',
-                    border: `1px solid ${currentNetwork.testnet ? '#423415' : '#2b4630'}`,
-                    borderRadius: '6px',
-                    padding: '12px 16px',
-                    marginBottom: '10px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
+              {/* Show loading state */}
+              {isConfigLoading && (
+                <div style={{ padding: '40px 20px', textAlign: 'center', color: '#a0a0a0' }}>
+                  Loading networks...
+                </div>
+              )}
+              
+              {/* Show networks only when not loading */}
+              {!isConfigLoading && (
+                <>
+                  {/* Current Network */}
+                  {currentNetwork && (
                     <div style={{
-                      display: 'flex',
-                      alignItems: 'center'
+                      padding: '10px 20px 5px 20px'
                     }}>
+                      <p style={{
+                        margin: '0 0 8px 0',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        color: '#a0a0a0',
+                        letterSpacing: '0.5px'
+                      }}>
+                        Currently Connected
+                      </p>
                       <div style={{
-                        width: '10px',
-                        height: '10px',
-                        borderRadius: '50%',
-                        marginRight: '12px',
-                        backgroundColor: currentNetwork.testnet ? '#f0b90b' : '#28a745'
-                      }}></div>
-                      <div>
+                        backgroundColor: currentNetwork.testnet ? '#2d2718' : '#1b2c1e',
+                        border: `1px solid ${currentNetwork.testnet ? '#423415' : '#2b4630'}`,
+                        borderRadius: '6px',
+                        padding: '12px 16px',
+                        marginBottom: '10px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
                         <div style={{
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <div style={{
+                            width: '10px',
+                            height: '10px',
+                            borderRadius: '50%',
+                            marginRight: '12px',
+                            backgroundColor: currentNetwork.testnet ? '#f0b90b' : '#28a745'
+                          }}></div>
+                          <div>
+                            <div style={{
+                              fontWeight: 500,
+                              color: 'white',
+                              fontSize: '14px'
+                            }}>{currentNetwork.name}</div>
+                            <div className="text-sm text-gray-300">
+                              {typeof currentNetwork.currency === 'string' ? currentNetwork.currency : currentNetwork.currency.symbol}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{
+                          fontSize: '11px',
+                          padding: '3px 8px',
+                          borderRadius: '12px',
                           fontWeight: 500,
-                          color: 'white',
-                          fontSize: '14px'
-                        }}>{currentNetwork.name}</div>
-                        <div className="text-sm text-gray-300">
-                          {typeof currentNetwork.currency === 'string' ? currentNetwork.currency : currentNetwork.currency.symbol}
+                          color: currentNetwork.testnet ? '#f0b90b' : '#28a745',
+                          backgroundColor: currentNetwork.testnet ? '#2d2718' : '#1b2c1e'
+                        }}>
+                          {currentNetwork.testnet ? 'Test' : 'Main'}
                         </div>
                       </div>
                     </div>
+                  )}
+                  
+                  {/* Mainnet Networks */}
+                  {mainnets.length > 0 && (
                     <div style={{
-                      fontSize: '11px',
-                      padding: '3px 8px',
-                      borderRadius: '12px',
-                      fontWeight: 500,
-                      color: currentNetwork.testnet ? '#f0b90b' : '#28a745',
-                      backgroundColor: currentNetwork.testnet ? '#2d2718' : '#1b2c1e'
+                      padding: '10px 20px 5px 20px'
                     }}>
-                      {currentNetwork.testnet ? 'Test' : 'Main'}
+                      <p style={{
+                        margin: '0 0 8px 0',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        color: '#a0a0a0',
+                        letterSpacing: '0.5px'
+                      }}>
+                        MAINNET NETWORKS
+                      </p>
+                      <div>
+                        {mainnets.map(network => {
+                          const isSelected = currentChainId === network.chainId || 
+                            (!currentChainId && currentNetwork?.chainId === network.chainId);
+                          
+                          return (
+                            <button
+                              key={network.chainId}
+                              onClick={() => handleNetworkSelect(network.chainId)}
+                              style={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '10px 12px',
+                                marginBottom: '6px',
+                                borderRadius: '6px',
+                                border: isSelected ? '1px solid #3d5a73' : '1px solid #2e2e2e',
+                                backgroundColor: isSelected ? '#1a2c3d' : '#262626',
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                transition: 'all 0.2s',
+                                outline: 'none'
+                              }}
+                              onMouseOver={(e) => {
+                                if (!isSelected) e.currentTarget.style.backgroundColor = '#303030';
+                              }}
+                              onMouseOut={(e) => {
+                                if (!isSelected) e.currentTarget.style.backgroundColor = '#262626';
+                              }}
+                              disabled={isChangingNetwork}
+                            >
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}>
+                                <div style={{
+                                  width: '10px',
+                                  height: '10px',
+                                  borderRadius: '50%',
+                                  marginRight: '12px',
+                                  backgroundColor: '#28a745'
+                                }}></div>
+                                <div>
+                                  <div style={{
+                                    fontWeight: 500,
+                                    color: 'white',
+                                    fontSize: '14px'
+                                  }}>{network.name}</div>
+                                  <div className="text-sm text-gray-300">
+                                    {typeof network.currency === 'string' ? network.currency : network.currency.symbol}
+                                  </div>
+                                </div>
+                              </div>
+                              {isSelected && (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M5 13L9 17L19 7" stroke="#90caf9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Mainnet Networks */}
-              {mainnets.length > 0 && (
-                <div style={{
-                  padding: '10px 20px 5px 20px'
-                }}>
-                  <p style={{
-                    margin: '0 0 8px 0',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    color: '#a0a0a0',
-                    letterSpacing: '0.5px'
-                  }}>
-                    MAINNET NETWORKS
-                  </p>
-                  <div>
-                    {mainnets.map(network => {
-                      const isSelected = currentChainId === network.chainId || 
-                        (!currentChainId && currentNetwork?.chainId === network.chainId);
-                      
-                      return (
-                        <button
-                          key={network.chainId}
-                          onClick={() => handleNetworkSelect(network.chainId)}
-                          style={{
-                            width: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '10px 12px',
-                            marginBottom: '6px',
-                            borderRadius: '6px',
-                            border: isSelected ? '1px solid #3d5a73' : '1px solid #2e2e2e',
-                            backgroundColor: isSelected ? '#1a2c3d' : '#262626',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            transition: 'all 0.2s',
-                            outline: 'none'
-                          }}
-                          onMouseOver={(e) => {
-                            if (!isSelected) e.currentTarget.style.backgroundColor = '#303030';
-                          }}
-                          onMouseOut={(e) => {
-                            if (!isSelected) e.currentTarget.style.backgroundColor = '#262626';
-                          }}
-                          disabled={isChangingNetwork}
-                        >
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center'
-                          }}>
-                            <div style={{
-                              width: '10px',
-                              height: '10px',
-                              borderRadius: '50%',
-                              marginRight: '12px',
-                              backgroundColor: '#28a745'
-                            }}></div>
-                            <div>
+                  )}
+                  
+                  {/* Testnet Networks */}
+                  {showTestnets && testnets.length > 0 && (
+                    <div style={{
+                      padding: '10px 20px 5px 20px'
+                    }}>
+                      <p style={{
+                        margin: '0 0 8px 0',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        color: '#a0a0a0',
+                        letterSpacing: '0.5px'
+                      }}>
+                        TESTNET NETWORKS
+                      </p>
+                      <div>
+                        {testnets.map(network => {
+                          const isSelected = currentChainId === network.chainId || 
+                            (!currentChainId && currentNetwork?.chainId === network.chainId);
+                          
+                          return (
+                            <button
+                              key={network.chainId}
+                              onClick={() => handleNetworkSelect(network.chainId)}
+                              style={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '10px 12px',
+                                marginBottom: '6px',
+                                borderRadius: '6px',
+                                border: isSelected ? '1px solid #3d5a73' : '1px solid #2e2e2e',
+                                backgroundColor: isSelected ? '#1a2c3d' : '#262626',
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                transition: 'all 0.2s',
+                                outline: 'none'
+                              }}
+                              onMouseOver={(e) => {
+                                if (!isSelected) e.currentTarget.style.backgroundColor = '#303030';
+                              }}
+                              onMouseOut={(e) => {
+                                if (!isSelected) e.currentTarget.style.backgroundColor = '#262626';
+                              }}
+                              disabled={isChangingNetwork}
+                            >
                               <div style={{
-                                fontWeight: 500,
-                                color: 'white',
-                                fontSize: '14px'
-                              }}>{network.name}</div>
-                              <div className="text-sm text-gray-300">
-                                {typeof network.currency === 'string' ? network.currency : network.currency.symbol}
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}>
+                                <div style={{
+                                  width: '10px',
+                                  height: '10px',
+                                  borderRadius: '50%',
+                                  marginRight: '12px',
+                                  backgroundColor: '#f0b90b'
+                                }}></div>
+                                <div>
+                                  <div style={{
+                                    fontWeight: 500,
+                                    color: 'white',
+                                    fontSize: '14px'
+                                  }}>{network.name}</div>
+                                  <div className="text-sm text-gray-300">
+                                    {typeof network.currency === 'string' ? network.currency : network.currency.symbol}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                          {isSelected && (
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M5 13L9 17L19 7" stroke="#90caf9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              
-              {/* Testnet Networks */}
-              {showTestnets && testnets.length > 0 && (
-                <div style={{
-                  padding: '10px 20px 5px 20px'
-                }}>
-                  <p style={{
-                    margin: '0 0 8px 0',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    color: '#a0a0a0',
-                    letterSpacing: '0.5px'
-                  }}>
-                    TESTNET NETWORKS
-                  </p>
-                  <div>
-                    {testnets.map(network => {
-                      const isSelected = currentChainId === network.chainId || 
-                        (!currentChainId && currentNetwork?.chainId === network.chainId);
-                      
-                      return (
-                        <button
-                          key={network.chainId}
-                          onClick={() => handleNetworkSelect(network.chainId)}
-                          style={{
-                            width: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '10px 12px',
-                            marginBottom: '6px',
-                            borderRadius: '6px',
-                            border: isSelected ? '1px solid #3d5a73' : '1px solid #2e2e2e',
-                            backgroundColor: isSelected ? '#1a2c3d' : '#262626',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            transition: 'all 0.2s',
-                            outline: 'none'
-                          }}
-                          onMouseOver={(e) => {
-                            if (!isSelected) e.currentTarget.style.backgroundColor = '#303030';
-                          }}
-                          onMouseOut={(e) => {
-                            if (!isSelected) e.currentTarget.style.backgroundColor = '#262626';
-                          }}
-                          disabled={isChangingNetwork}
-                        >
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center'
-                          }}>
-                            <div style={{
-                              width: '10px',
-                              height: '10px',
-                              borderRadius: '50%',
-                              marginRight: '12px',
-                              backgroundColor: '#f0b90b'
-                            }}></div>
-                            <div>
-                              <div style={{
-                                fontWeight: 500,
-                                color: 'white',
-                                fontSize: '14px'
-                              }}>{network.name}</div>
-                              <div className="text-sm text-gray-300">
-                                {typeof network.currency === 'string' ? network.currency : network.currency.symbol}
-                              </div>
-                            </div>
-                          </div>
-                          {isSelected && (
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M5 13L9 17L19 7" stroke="#90caf9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              
-              {/* No Networks */}
-              {configuredNetworks.length === 0 && (
-                <div style={{
-                  padding: '40px 20px',
-                  textAlign: 'center'
-                }}>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ margin: '0 auto 12px auto', color: '#757575' }}>
-                    <path d="M12 9V11M12 15H12.01M5.07183 19H18.9282C20.4678 19 21.4301 17.3333 20.6603 16L13.7321 4C12.9623 2.66667 11.0378 2.66667 10.268 4L3.33978 16C2.56998 17.3333 3.53223 19 5.07183 19Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <p style={{
-                    margin: '0 0 4px 0',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: 'white'
-                  }}>No networks configured</p>
-                  <p style={{
-                    margin: 0,
-                    fontSize: '12px',
-                    color: '#a0a0a0'
-                  }}>Add networks in the settings</p>
-                </div>
+                              {isSelected && (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M5 13L9 17L19 7" stroke="#90caf9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* No Networks */}
+                  {configuredNetworksState.length === 0 && (
+                    <div style={{
+                      padding: '40px 20px',
+                      textAlign: 'center'
+                    }}>
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ margin: '0 auto 12px auto', color: '#757575' }}>
+                        <path d="M12 9V11M12 15H12.01M5.07183 19H18.9282C20.4678 19 21.4301 17.3333 20.6603 16L13.7321 4C12.9623 2.66667 11.0378 2.66667 10.268 4L3.33978 16C2.56998 17.3333 3.53223 19 5.07183 19Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <p style={{
+                        margin: '0 0 4px 0',
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        color: 'white'
+                      }}>No networks configured</p>
+                      <p style={{
+                        margin: 0,
+                        fontSize: '12px',
+                        color: '#a0a0a0'
+                      }}>Add networks in the settings</p>
+                    </div>
+                  )}
+                </> // End fragment for !isConfigLoading
               )}
             </div>
             

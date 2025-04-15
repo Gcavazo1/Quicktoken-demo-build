@@ -4,13 +4,16 @@ import { ethers } from 'ethers';
 // See: https://eips.ethereum.org/EIPS/eip-6963
 
 // Interface for the EIP-1193 provider object
-interface EIP1193Provider {
+export interface EIP1193Provider {
   isStatus?: boolean;
   host?: string;
   path?: string;
   sendAsync?: (request: { method: string, params?: Array<unknown> }, callback: (error: Error | null, response: unknown) => void) => void;
   send?: (request: { method: string, params?: Array<unknown> }, callback: (error: Error | null, response: unknown) => void) => void;
   request: (request: { method: string, params?: Array<unknown> }) => Promise<unknown>;
+  // Add optional event handling methods
+  on?(eventName: string | symbol, listener: (...args: any[]) => void): this;
+  removeListener?(eventName: string | symbol, listener: (...args: any[]) => void): this;
 }
 
 // Interface for the EIP-6963 provider information
@@ -44,7 +47,6 @@ export interface EIP6963ProviderDetail {
 
 
 // Keep WalletType for potential internal logic or UI hints if needed, but connection relies on RDNS now
-export type WalletType = 'metamask' | 'coinbase' | 'other'; 
 
 // Result structure remains similar, but provider is now more specific
 interface ConnectResult {
@@ -97,7 +99,6 @@ export class WalletConnector {
   public discoverAvailableProviders(): void {
     if (typeof window === 'undefined') return; // Guard for SSR or non-browser envs
 
-    console.log('[WalletConnector] Starting EIP-6963 provider discovery...');
     this.discoveredProviders.clear();
     this.discoveryComplete = false;
 
@@ -108,7 +109,6 @@ export class WalletConnector {
         const detail = announceEvent.detail;
         // Use RDNS as the unique key
         if (detail.info?.rdns && !this.discoveredProviders.has(detail.info.rdns)) {
-          console.log(`[WalletConnector] Discovered provider: ${detail.info.name} (${detail.info.rdns})`);
           this.discoveredProviders.set(detail.info.rdns, detail);
           // Optionally, notify listeners that providers have updated
           window.dispatchEvent(new CustomEvent('walletProvidersUpdated'));
@@ -127,7 +127,6 @@ export class WalletConnector {
     if (this.discoveryTimeout) clearTimeout(this.discoveryTimeout);
     this.discoveryTimeout = setTimeout(() => {
       this.discoveryComplete = true;
-      console.log(`[WalletConnector] EIP-6963 discovery period ended. Found ${this.discoveredProviders.size} providers.`);
       // Stop listening after timeout? Or keep listening for late announcements? Keep listening for now.
       // window.removeEventListener('eip6963:announceProvider', handleAnnounce); // Consider cleanup strategy
     }, 1000); // Wait 1 second for announcements
@@ -140,6 +139,13 @@ export class WalletConnector {
     // If discovery isn't complete, maybe wait briefly or return current state?
     // For now, return the current map. Components might need to listen for updates.
     return this.discoveredProviders;
+  }
+
+  /**
+   * Checks if the initial EIP-6963 discovery period has ended.
+   */
+  public isDiscoveryComplete(): boolean {
+    return this.discoveryComplete;
   }
 
   // --- Event Listener Management ---
@@ -157,7 +163,7 @@ export class WalletConnector {
     provider.on?.('accountsChanged', this._boundAccountsChangedHandler);
     provider.on?.('disconnect', this._boundDisconnectHandler); // Listen for disconnect
 
-    console.log(`[WalletConnector] Event listeners set up for provider: ${this.activeProviderDetail?.info.name}`);
+    // console.log(`[WalletConnector] Event listeners set up for provider: ${this.activeProviderDetail?.info.name}`);
   }
 
   private removeEventListeners() {
@@ -176,13 +182,12 @@ export class WalletConnector {
       provider.removeListener?.('disconnect', this._boundDisconnectHandler);
       this._boundDisconnectHandler = null;
     }
-     console.log(`[WalletConnector] Event listeners removed for provider: ${this.activeProviderDetail?.info.name}`);
+     // console.log(`[WalletConnector] Event listeners removed for provider: ${this.activeProviderDetail?.info.name}`);
   }
 
   // --- Event Handlers ---
 
   private handleChainChanged(chainId: string) {
-    console.log(`[WalletConnector] handleChainChanged: ${chainId}`);
     this.isNetworkChanging = true; // Flag network change
     try {
       this.lastKnownChainId = parseInt(chainId, 16);
@@ -198,7 +203,6 @@ export class WalletConnector {
   }
 
   private handleAccountsChanged(accounts: string[]) {
-     console.log(`[WalletConnector] handleAccountsChanged:`, accounts);
     if (accounts.length === 0) {
       // Handle disconnection or lock
        console.log('[WalletConnector] Wallet locked or disconnected (accounts empty).');
@@ -370,11 +374,17 @@ export class WalletConnector {
       }
       
       // Return current valid state
+      // ** Add final check before accessing activeProviderDetail **
+      if (!this.activeProviderDetail) {
+        console.log(`${logPrefix} Active provider became null during execution. Returning disconnected state.`);
+        return { provider: null, account: null, chainId: null };
+      }
+
       const finalResult: ConnectResult = {
         provider: this.activeEthersProvider,
         account: this.lastKnownAccount,
         chainId: this.lastKnownChainId,
-        walletInfo: this.activeProviderDetail.info,
+        walletInfo: this.activeProviderDetail.info, 
       };
       console.log(`${logPrefix} Returning final state:`, finalResult);
       return finalResult;
@@ -401,6 +411,13 @@ export class WalletConnector {
    */
   public isNetworkSwitching(): boolean {
     return this.isNetworkChanging;
+  }
+
+  /**
+   * Returns the details of the currently active provider connection.
+   */
+  public getActiveProviderDetail(): EIP6963ProviderDetail | null {
+    return this.activeProviderDetail;
   }
 
   // --- Deprecated/Legacy Methods (Optional: Decide if needed or remove) ---

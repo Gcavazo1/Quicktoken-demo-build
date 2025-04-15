@@ -22,6 +22,7 @@ export interface NetworkInfo {
   testnet?: boolean;
   // Add alias for explorerUrl to maintain compatibility
   explorerUrl?: string;
+  isDefault?: boolean;
 }
 
 /**
@@ -126,6 +127,126 @@ export const NETWORKS: Record<number, NetworkInfo> = {
     rpcUrl: 'http://localhost:8545',
     blockExplorerUrl: '',
     explorerUrl: ''
+  },
+  // --- Add Arbitrum ---
+  42161: {
+    chainId: 42161,
+    name: 'Arbitrum One',
+    shortName: 'Arbitrum',
+    isTestnet: false,
+    testnet: false,
+    currency: 'ETH',
+    rpcUrl: 'https://arb1.arbitrum.io/rpc',
+    blockExplorerUrl: 'https://arbiscan.io',
+    explorerUrl: 'https://arbiscan.io'
+  },
+  // --- Add Avalanche ---
+  43114: {
+    chainId: 43114,
+    name: 'Avalanche C-Chain',
+    shortName: 'Avalanche',
+    isTestnet: false,
+    testnet: false,
+    currency: 'AVAX',
+    rpcUrl: 'https://api.avax.network/ext/bc/C/rpc',
+    blockExplorerUrl: 'https://snowtrace.io',
+    explorerUrl: 'https://snowtrace.io'
+  },
+  // --- Add Base ---
+  8453: {
+    chainId: 8453,
+    name: 'Base',
+    shortName: 'Base',
+    isTestnet: false,
+    testnet: false,
+    currency: 'ETH',
+    rpcUrl: 'https://mainnet.base.org',
+    blockExplorerUrl: 'https://basescan.org',
+    explorerUrl: 'https://basescan.org'
+  },
+  // --- Add Optimism ---
+  10: {
+    chainId: 10,
+    name: 'Optimism',
+    shortName: 'Optimism',
+    isTestnet: false,
+    testnet: false,
+    currency: 'ETH',
+    rpcUrl: 'https://mainnet.optimism.io',
+    blockExplorerUrl: 'https://optimistic.etherscan.io',
+    explorerUrl: 'https://optimistic.etherscan.io'
+  },
+  // --- Add Fantom ---
+  250: {
+    chainId: 250,
+    name: 'Fantom Opera',
+    shortName: 'Fantom',
+    isTestnet: false,
+    testnet: false,
+    currency: 'FTM',
+    rpcUrl: 'https://rpc.ftm.tools',
+    blockExplorerUrl: 'https://ftmscan.com',
+    explorerUrl: 'https://ftmscan.com'
+  },
+  // --- Add Base Goerli ---
+  84531: {
+    chainId: 84531,
+    name: 'Base Goerli',
+    shortName: 'Base Goerli',
+    isTestnet: true,
+    testnet: true,
+    currency: 'ETH',
+    rpcUrl: 'https://goerli.base.org',
+    blockExplorerUrl: 'https://goerli.basescan.org',
+    explorerUrl: 'https://goerli.basescan.org'
+  },
+  // --- Add Gnosis ---
+  100: {
+    chainId: 100,
+    name: 'Gnosis',
+    shortName: 'Gnosis',
+    isTestnet: false,
+    testnet: false,
+    currency: 'xDAI',
+    rpcUrl: 'https://rpc.gnosischain.com',
+    blockExplorerUrl: 'https://gnosisscan.io',
+    explorerUrl: 'https://gnosisscan.io'
+  },
+  // --- Add zkSync Era ---
+  324: {
+    chainId: 324,
+    name: 'zkSync Era',
+    shortName: 'zkSync',
+    isTestnet: false,
+    testnet: false,
+    currency: 'ETH',
+    rpcUrl: 'https://mainnet.era.zksync.io',
+    blockExplorerUrl: 'https://explorer.zksync.io',
+    explorerUrl: 'https://explorer.zksync.io'
+  },
+  // --- Add Linea ---
+  59144: {
+    chainId: 59144,
+    name: 'Linea',
+    shortName: 'Linea',
+    isTestnet: false,
+    testnet: false,
+    currency: 'ETH',
+    rpcUrl: 'https://rpc.linea.build',
+    blockExplorerUrl: 'https://lineascan.build',
+    explorerUrl: 'https://lineascan.build'
+  },
+  // --- Add Scroll ---
+  534352: {
+    chainId: 534352,
+    name: 'Scroll',
+    shortName: 'Scroll',
+    isTestnet: false,
+    testnet: false,
+    currency: 'ETH',
+    rpcUrl: 'https://rpc.scroll.io',
+    blockExplorerUrl: 'https://scrollscan.com',
+    explorerUrl: 'https://scrollscan.com'
   }
 };
 

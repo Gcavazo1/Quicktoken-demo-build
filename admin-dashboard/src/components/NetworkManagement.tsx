@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNetwork } from '../contexts/NetworkContext';
 import { NetworkInfo } from '../shared/constants/networks';
-import { useNotification } from '../contexts/NotificationContext';
-import { NotificationType } from '../components/NotificationModal';
 
 interface NetworkManagementProps {
   className?: string;
@@ -45,13 +43,9 @@ const normalizeCurrency = (
 
 const NetworkManagement: React.FC<NetworkManagementProps> = ({ className = '' }) => {
   const {
-    supportedNetworks: networks,
-    addCustomNetwork: addNetwork,
-    removeCustomNetwork: removeNetwork,
+    configuredNetworks: networks,
     currentNetwork: activeNetwork,
-    updateNetwork
   } = useNetwork();
-  const { showNotification } = useNotification();
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingNetwork, setEditingNetwork] = useState<NetworkInfo | null>(null);
@@ -138,62 +132,47 @@ const NetworkManagement: React.FC<NetworkManagementProps> = ({ className = '' })
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formState.name || !formState.rpcUrl || !formState.chainId || !formState.symbolInput) {
-      showNotification('All fields are required', 'error');
-      return;
-    }
-    
-    // Ensure currency is an object with the correct properties
-    const updatedCurrency = normalizeCurrency(formState.currency);
-    updatedCurrency.symbol = formState.symbolInput || '';
-    updatedCurrency.name = formState.name || 'Token';
-    
-    const networkInfo: NetworkInfo = {
-      name: formState.name || '',
-      chainId: Number(formState.chainId),
-      shortName: formState.shortName || '',
-      rpcUrl: formState.rpcUrl || '',
-      explorerUrl: formState.explorerUrl || '',
-      blockExplorerUrl: formState.explorerUrl || '',
-      isTestnet: formState.testnet || false,
-      testnet: formState.testnet || false,
-      currency: updatedCurrency
-    };
-    
+    console.log('Network add/update needs refactoring.');
+    // ... existing logic ...
+    /* 
     if (editingNetwork) {
-      updateNetwork(networkInfo);
-      showNotification(`Network ${networkInfo.name} has been updated`, 'success');
+      // updateNetwork(networkInfo); // Requires updateNetwork from context
+      console.log(`Network ${networkInfo.name} has been updated`);
     } else {
-      addNetwork(networkInfo);
-      showNotification(`Network ${networkInfo.name} has been added`, 'success');
+      // addNetwork(networkInfo); // Requires addNetwork from context
+      console.log(`Network ${networkInfo.name} has been added`);
     }
-    
     resetForm();
+    */
   };
   
   // Start editing a network
   const handleEdit = (network: NetworkInfo) => {
+    console.log('Network editing needs refactoring.');
+    /*
     const normalizedCurrency = normalizeCurrency(network.currency);
-    
     setFormState({ 
       ...network,
       symbolInput: normalizedCurrency.symbol
     });
     setEditingNetwork(network);
     setShowAddForm(true);
+    */
   };
   
   // Delete a network
   const handleDelete = (chainId: number) => {
+    console.log('Network removal needs refactoring.');
+    /*
     if (confirm('Are you sure you want to remove this network?')) {
-      removeNetwork(chainId);
+      // removeNetwork(chainId); // Requires removeNetwork from context
     }
+    */
   };
   
   // Filter networks by testnet status
-  const mainnetNetworks = networks.filter(network => !network.testnet);
-  const testnetNetworks = networks.filter(network => network.testnet);
+  const mainnetNetworks = networks.filter((network: NetworkInfo) => !network.testnet);
+  const testnetNetworks = networks.filter((network: NetworkInfo) => network.testnet);
   
   return (
     <div className={`bg-gray-800 rounded-lg shadow-md border border-gray-700 ${className}`}>

@@ -26,9 +26,9 @@ export async function deployToken(
   const network = await provider.getNetwork();
   const signerAddress = await signer.getAddress();
 
-  console.log('Deploying token with parameters:', params);
-  console.log('Deployer address:', signerAddress);
-  console.log('Network:', network.name, '(', network.chainId, ')');
+  // console.log('Deploying token with parameters:', params);
+  // console.log('Deployer address:', signerAddress);
+  // console.log('Network:', network.name, '(', network.chainId, ')');
 
   try {
     // Convert values to appropriate format
@@ -54,12 +54,12 @@ export async function deployToken(
     );
 
     const txHash = contract.deploymentTransaction()?.hash;
-    console.log('Deployment transaction sent:', txHash);
+    // console.log('Deployment transaction sent:', txHash);
 
     // Wait for deployment to finish
     await contract.waitForDeployment();
     const contractAddress = await contract.getAddress();
-    console.log('Contract deployed at:', contractAddress);
+    // console.log('Contract deployed at:', contractAddress);
 
     // Create token object
     const token: DeployedToken = {

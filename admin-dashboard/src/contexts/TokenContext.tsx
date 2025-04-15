@@ -1,12 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { ethers } from 'ethers';
 import { DeployedToken, TokenDeployParams, TokenAction } from '../lib/types/tokens';
 import { QuickTokenABI } from '../lib/QuickTokenABI';
 import { deployToken, loadDeployedTokens, saveDeployedToken, saveMultipleTokens } from '../lib/deployToken';
-import WalletConnector from '../services/WalletConnector';
 import { Provider } from '../lib/types/web3';
-import { useNotification } from './NotificationContext';
 import { useNetwork } from './NetworkContext';
+import { useWallet } from '../hooks/useWallet';
 
 /**
  * Token context value interface
@@ -77,62 +76,45 @@ interface TokenProviderProps {
  * Manages token state and actions
  */
 export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
-  // State
+  // Token State
   const [tokens, setTokens] = useState<DeployedToken[]>([]);
   const [allNetworksTokens, setAllNetworksTokens] = useState<Record<number, DeployedToken[]>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedToken, setSelectedToken] = useState<DeployedToken | null>(null);
   
-  // Get wallet connection state
-  const [provider, setProvider] = useState<Provider | null>(null);
-  const [account, setAccount] = useState<string | null>(null);
-  const [chainId, setChainId] = useState<number | null>(null);
+  // Get wallet state from useWallet hook
+  const { provider, address: account, chainId, isConnected } = useWallet();
   
-  const { showNotification } = useNotification();
-  const { currentNetwork, getNetworkByChainId } = useNetwork();
+  const { getNetworkByChainId } = useNetwork();
   
   // Filtered tokens for current account and network
-  const ownedTokens = account 
-    ? tokens.filter(t => t.owner.toLowerCase() === account.toLowerCase())
-    : [];
+  const ownedTokens = useMemo(() => (
+    account 
+      ? tokens.filter(t => t.owner.toLowerCase() === account.toLowerCase())
+      : []
+  ), [tokens, account]);
   
-  const networkTokens = chainId 
-    ? tokens.filter(t => t.chainId === chainId)
-    : [];
+  const networkTokens = useMemo(() => (
+    chainId 
+      ? tokens.filter(t => t.chainId === chainId)
+      : []
+  ), [tokens, chainId]);
   
-  const ownedNetworkTokens = account && chainId
-    ? tokens.filter(t => 
-        t.owner.toLowerCase() === account.toLowerCase() && 
-        t.chainId === chainId)
-    : [];
-  
-  // Update connection state when the component mounts
-  useEffect(() => {
-    updateConnectionState();
-    
-    // Check for connection changes periodically
-    const intervalId = setInterval(updateConnectionState, 5000);
-    
-    return () => clearInterval(intervalId);
-  }, []);
-  
-  // Update the wallet connection state from the service
-  const updateConnectionState = async () => {
-    const { provider: connectedProvider, account: connectedAccount, chainId: connectedChainId } = 
-      await WalletConnector.getConnectionState();
-    
-    setProvider(connectedProvider);
-    setAccount(connectedAccount);
-    setChainId(connectedChainId);
-  };
+  const ownedNetworkTokens = useMemo(() => (
+    account && chainId
+      ? tokens.filter(t => 
+          t.owner.toLowerCase() === account.toLowerCase() && 
+          t.chainId === chainId)
+      : []
+  ), [tokens, account, chainId]);
   
   // Load tokens from localStorage on initial render
   useEffect(() => {
     loadTokens();
   }, []);
   
-  // Filter tokens by current connected account when address changes
+  // Filter selected token by current connected account when address changes
   useEffect(() => {
     if (selectedToken && account) {
       // Check if the selected token is owned by the current account
@@ -142,7 +124,7 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
     }
   }, [account, selectedToken]);
   
-  // Also filter by current network
+  // Filter selected token by current network when chainId changes
   useEffect(() => {
     if (selectedToken && chainId) {
       // Check if the selected token is on the current network
@@ -152,8 +134,14 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
     }
   }, [chainId, selectedToken]);
   
+  // Effect to refresh token list when chainId changes
+  useEffect(() => {
+    if (!chainId || !account || !provider) return;
+    refreshNetworkTokens();
+  }, [chainId, account, provider]); // Dependencies updated to use state from useWallet
+  
   /**
-   * Load tokens from localStorage
+   * Load tokens from localStorage and set active tokens based on current chainId
    */
   const loadTokens = () => {
     try {
@@ -172,18 +160,33 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
         
         setAllNetworksTokens(tokensByNetwork);
         
-        // Set active tokens based on current chainId
+        // Set active tokens based on current chainId (now derived from useWallet)
         if (chainId && tokensByNetwork[chainId]) {
           setTokens(tokensByNetwork[chainId]);
         } else {
-          setTokens(parsedTokens);
+          // If no chainId, set to empty array initially
+          setTokens([]);
         }
       }
     } catch (error) {
       console.error('Failed to load tokens from localStorage:', error);
-      showNotification('Failed to load saved tokens', 'error');
     }
   };
+  
+  /**
+   * Refresh tokens for the currently connected network
+   */
+  const refreshNetworkTokens = useCallback(async () => {
+    console.log('[TokenContext] Refreshing tokens for network:', chainId);
+    if (chainId && allNetworksTokens[chainId]) {
+      setTokens([...allNetworksTokens[chainId]]); // Update with fresh copy
+    } else if (chainId) {
+      setTokens([]); // Set to empty if no tokens for this network
+    } else {
+      // If disconnected, tokens should already be empty via useEffect[chainId]
+    }
+    // Note: Add logic here later to re-fetch on-chain data if necessary
+  }, [chainId, allNetworksTokens]);
   
   /**
    * Deploy a new token
@@ -191,8 +194,8 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
    * @returns The address of the newly deployed token, or null if deployment failed
    */
   const deployNewToken = async (params: TokenDeployParams): Promise<string | null> => {
-    if (!provider || !account || !chainId) {
-      setError('Wallet not connected');
+    if (!isConnected || !provider || !account || !chainId) {
+      setError('Wallet not connected or chain ID missing');
       return null;
     }
     
@@ -254,20 +257,24 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
         chainId: chainId
       };
       
-      // Update tokens for this network
-      const updatedTokens = [...(allNetworksTokens[chainId] || []), newToken];
+      // Save the new token
+      saveDeployedToken(newToken);
       
-      // Save updated tokens
-      saveTokens(updatedTokens, chainId);
+      // Update state immediately
+      setAllNetworksTokens(prev => ({
+        ...prev,
+        [newToken.chainId]: [...(prev[newToken.chainId] || []), newToken]
+      }));
+      // Update active tokens if the new token is on the current network
+      if (newToken.chainId === chainId) {
+         setTokens(prev => [...prev, newToken]);
+      }
       
-      // Show success notification
-      showNotification(`Token ${params.symbol} deployed on ${networkName}`, 'success');
-      
+      console.log(`Token ${newToken.name} deployed successfully!`);
       return contractAddress;
     } catch (error: any) {
       console.error('Token deployment failed:', error);
-      setError(error.message || 'Failed to deploy token');
-      showNotification('Token deployment failed', 'error');
+      setError(`Deployment failed: ${error.message}`);
       return null;
     } finally {
       setIsLoading(false);
@@ -300,7 +307,6 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
       const network = getNetworkByChainId(token.chainId);
       const networkName = network?.name || `Network ${token.chainId}`;
       setError(`Please switch to ${networkName} to perform this action`);
-      showNotification(`Please switch to ${networkName}`, 'warning');
       return false;
     }
     
@@ -424,8 +430,8 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
       if (!token || tokenNetwork === null) return;
       
       // Check if token is on the current network
-      if (chainId !== tokenNetwork) {
-        console.log(`Token is on network ID ${tokenNetwork}, skipping refresh`);
+      if (tokenNetwork !== chainId) {
+        // Skip tokens not on the current network
         return;
       }
       
@@ -467,7 +473,7 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
           const statusMessage = paused ? 
             `${token.name} token has been paused. Transfers are disabled.` :
             `${token.name} token has been unpaused. Transfers are now enabled.`;
-          showNotification(statusMessage, paused ? 'warning' : 'success');
+          console.log(statusMessage);
         }
       }
     } catch (error) {
@@ -661,7 +667,7 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
       // Show success notification
       const network = getNetworkByChainId(chainId);
       const networkName = network?.name || `Network ${chainId}`;
-      showNotification(`Token ${symbol} imported from ${networkName}`, 'success');
+      console.log(`Token ${symbol} imported from ${networkName}`);
       
       return true;
     } catch (error: any) {
@@ -676,7 +682,8 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
   /**
    * Save tokens to localStorage, organized by network
    */
-  const saveTokens = (updatedTokens: DeployedToken[], targetChainId: number) => {
+  // Wrap saveTokens in useCallback
+  const saveTokens = useCallback((updatedTokens: DeployedToken[], targetChainId: number) => {
     try {
       // Update network-specific tokens
       const updatedNetworkTokens = {
@@ -700,104 +707,74 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Failed to save tokens to localStorage:', error);
     }
-  };
+  }, [allNetworksTokens, chainId, setAllNetworksTokens, setTokens]); // Add dependencies
   
-  /**
-   * Refresh information for all tokens on the current network
-   */
-  const refreshNetworkTokens = async (): Promise<void> => {
-    if (!provider || !chainId) return;
-    
-    setIsLoading(true);
-    
-    try {
-      // Get tokens on the current network
-      const tokensToRefresh = allNetworksTokens[chainId] || [];
-      const updatedTokens: DeployedToken[] = [];
-      
-      // Refresh each token sequentially
-      for (const token of tokensToRefresh) {
-        try {
-          // Create contract instance
-          const contract = new ethers.Contract(token.address, QuickTokenABI, provider);
-          
-          // Get updated token info
-          const [totalSupplyWei, paused] = await Promise.all([
-            contract.totalSupply(),
-            contract.paused()
-          ]);
-          
-          // Update token
-          const updatedToken = {
-            ...token,
-            totalSupply: ethers.formatEther(totalSupplyWei),
-            paused
-          };
-          
-          updatedTokens.push(updatedToken);
-        } catch (error) {
-          console.error(`Failed to refresh token ${token.address}:`, error);
-          // If we can't refresh, keep the original token
-          updatedTokens.push(token);
-        }
-      }
-      
-      // Save all updated tokens
-      if (updatedTokens.length > 0) {
-        // Save to localStorage
-        saveTokens(updatedTokens, chainId);
-        
-        // Update selected token if it's on this network
-        if (selectedToken && selectedToken.chainId === chainId) {
-          const updatedSelected = updatedTokens.find(t => 
-            t.address.toLowerCase() === selectedToken.address.toLowerCase()
-          );
-          if (updatedSelected) {
-            setSelectedToken(updatedSelected);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Failed to refresh network tokens:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  /**
-   * Refresh information for all tokens across all networks
-   * Note: This uses the current provider, so it will only work for the current network
-   */
-  const refreshAllTokens = async (): Promise<void> => {
+  // Wrap refreshNetworkTokens in useCallback
+  const refreshAllTokens = useCallback(async (): Promise<void> => {
     if (!provider || !chainId) return;
     
     // We can only refresh the current network's tokens
     await refreshNetworkTokens();
-  };
+  }, [provider, chainId, refreshNetworkTokens]);
   
-  // Compile context value
-  const contextValue: TokenContextValue = {
+  // Wrap functions intended for context value in useCallback
+  const deployNewTokenCallback = useCallback(deployNewToken, [isConnected, provider, account, chainId, allNetworksTokens, getNetworkByChainId, saveTokens]);
+  const performTokenActionCallback = useCallback(performTokenAction, [provider, account, chainId, getNetworkByChainId, refreshTokenInfo]); // refreshTokenInfo needs to be stable
+  const refreshTokenInfoCallback = useCallback(refreshTokenInfo, [provider, chainId, allNetworksTokens, selectedToken, saveTokens]);
+  // refreshNetworkTokens is already wrapped in useCallback
+  const refreshAllTokensCallback = useCallback(refreshAllTokens, [provider, chainId, refreshNetworkTokens]);
+  const selectTokenCallback = useCallback(selectToken, [allNetworksTokens]);
+  const getOwnedTokensCallback = useCallback(getOwnedTokens, [account, allNetworksTokens]);
+  const getNetworkTokensCallback = useCallback(getNetworkTokens, [chainId, allNetworksTokens]);
+  const getOwnedNetworkTokensCallback = useCallback(getOwnedNetworkTokens, [account, chainId, allNetworksTokens]);
+  const findTokenCallback = useCallback(findToken, [allNetworksTokens]);
+  const importTokenCallback = useCallback(importToken, [provider, chainId, allNetworksTokens, findToken, saveTokens]);
+
+  // Compile context value - use useMemo
+  const contextValue = useMemo((): TokenContextValue => ({
     tokens,
-    ownedTokens,
-    networkTokens,
-    ownedNetworkTokens,
+    ownedTokens, // Recalculated inline, but memoized by useMemo overall
+    networkTokens, // Recalculated inline, but memoized by useMemo overall
+    ownedNetworkTokens, // Recalculated inline, but memoized by useMemo overall
     allNetworksTokens,
     isLoading,
     error,
     selectedToken,
-    deployToken: deployNewToken,
-    performTokenAction,
-    refreshTokenInfo,
-    refreshNetworkTokens,
-    refreshAllTokens,
-    selectToken,
-    getOwnedTokens,
-    getNetworkTokens,
-    getOwnedNetworkTokens,
-    findToken,
-    importToken
-  };
-  
+    // Use the useCallback wrapped functions
+    deployToken: deployNewTokenCallback, 
+    performTokenAction: performTokenActionCallback,
+    refreshTokenInfo: refreshTokenInfoCallback,
+    refreshNetworkTokens, // Already useCallback
+    refreshAllTokens: refreshAllTokensCallback,
+    selectToken: selectTokenCallback,
+    getOwnedTokens: getOwnedTokensCallback,
+    getNetworkTokens: getNetworkTokensCallback,
+    getOwnedNetworkTokens: getOwnedNetworkTokensCallback,
+    findToken: findTokenCallback,
+    importToken: importTokenCallback
+  // Dependencies for useMemo: all state and stable functions used
+  }), [ 
+    tokens, 
+    ownedTokens, 
+    networkTokens, 
+    ownedNetworkTokens, 
+    allNetworksTokens,
+    isLoading, 
+    error, 
+    selectedToken, 
+    deployNewTokenCallback, 
+    performTokenActionCallback,
+    refreshTokenInfoCallback, 
+    refreshNetworkTokens, 
+    refreshAllTokensCallback, 
+    selectTokenCallback, 
+    getOwnedTokensCallback, 
+    getNetworkTokensCallback, 
+    getOwnedNetworkTokensCallback, 
+    findTokenCallback, 
+    importTokenCallback 
+  ]);
+
   return (
     <TokenContext.Provider value={contextValue}>
       {children}

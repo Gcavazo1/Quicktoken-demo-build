@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import HelpIcon from '../components/HelpIcon';
 import WhitelistSetupStep from '../components/setup/WhitelistSetupStep';
 import ConfigExportStep from '../components/setup/ConfigExportStep';
+import Step8Complete from '../components/setup/Step8Complete';
 import { WhitelistConfig, WhitelistEntry } from '../contexts/WhitelistContext';
+import { useWallet } from '../hooks/useWallet';
 
 // Configuration type definition
 export interface QuickTokenConfig {
   platformFeeAddress: string;
   platformFeePercentage: number;
   theme: 'light' | 'dark';
+  infuraId?: string;
   branding: {
     title: string;
   };
@@ -30,6 +33,9 @@ export interface QuickTokenConfig {
       rpcUrl: string;
       explorerUrl: string;
       isEnabled: boolean;
+      shortName?: string;
+      currencySymbol?: string;
+      testnet?: boolean;
     }>;
   };
   security?: {
@@ -70,6 +76,7 @@ const initialWhitelistConfig: WhitelistConfig = {
   entries: [],
   ownerAddress: '',
   lastModified: 0,
+  whitelistEnabled: true
 };
 
 interface SetupWizardProps {
@@ -756,7 +763,10 @@ const NetworkSettings: React.FC<{
       chainId: networkForm.chainId,
       rpcUrl: networkForm.rpcUrl,
       explorerUrl: networkForm.explorerUrl,
-      isEnabled: true
+      isEnabled: true,
+      shortName: '',
+      currencySymbol: '',
+      testnet: false
     }];
     
     setConfig({
@@ -1191,8 +1201,10 @@ const NetworkSettings: React.FC<{
 
 // Main SetupWizard component with updated step count
 const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
-  const [step, setStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 8;
   const [config, setConfig] = useState<QuickTokenConfig>({...defaultConfig});
+  const { disconnectWallet } = useWallet();
   // Add state for temporary whitelist configuration during setup
   const [tempWhitelistConfig, setTempWhitelistConfig] = useState<WhitelistConfig>(() => {
     // Try loading from localStorage initially, otherwise use default
@@ -1211,8 +1223,8 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     return initialWhitelistConfig;
   });
   
-  const nextStep = () => setStep(step + 1);
-  const prevStep = () => setStep(step - 1);
+  const nextStep = () => setCurrentStep(currentStep + 1);
+  const prevStep = () => setCurrentStep(currentStep - 1);
   
   // Handle whitelist setup step completion
   const handleWhitelistComplete = (finalWhitelistConfig: WhitelistConfig) => {
@@ -1243,59 +1255,17 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     nextStep(); // Move to verification & export step
   };
   
-  // Handle final setup completion - called from final export step
-  const handleComplete = (verifiedOwner: string) => {
-    console.log("Final setup complete. Saving final config:", config);
-    console.log("Final whitelist config used:", tempWhitelistConfig); // Log the final whitelist used
-    
-    // Save the main configuration to localStorage
-    localStorage.setItem('quicktoken_config', JSON.stringify(config));
-    
-    // Save the *final* whitelist configuration (which should match tempWhitelistConfig)
-    localStorage.setItem('quicktoken_whitelist_config', JSON.stringify(tempWhitelistConfig));
-    
+  // Function to handle completion of the setup process - Added disconnectWallet call
+  const handleCompleteSetup = () => {
+    disconnectWallet(); // Disconnect wallet before finalizing
+    // The owner was verified in step 7, we just finalize here.
+    const finalConfig = { ...config };
+    // Save the final configuration (e.g., to localStorage)
+    localStorage.setItem('quicktoken_config', JSON.stringify(finalConfig));
     localStorage.setItem('quicktoken_setup_complete', 'true');
-    localStorage.setItem('quicktoken_verified_owner', verifiedOwner);
     
-    // Apply the theme immediately to DOM
-    const root = document.documentElement;
-    if (config.theme === 'dark') {
-      root.classList.add('dark');
-      root.setAttribute('data-theme', 'dark');
-      document.body.style.backgroundColor = '#121212';
-      document.body.style.color = '#e0e0e0';
-    } else {
-      root.classList.remove('dark');
-      root.setAttribute('data-theme', 'light');
-      document.body.style.backgroundColor = '';
-      document.body.style.color = '';
-    }
-    
-    // Add system notification about completion
-    try {
-      if ('Notification' in window) {
-        if (Notification.permission === 'granted') {
-          new Notification('QuickToken Setup Complete', {
-            body: 'Your dashboard is now configured and ready to use!',
-            icon: '/favicon.ico'
-          });
-        } else if (Notification.permission !== 'denied') {
-          Notification.requestPermission().then(permission => {
-            if (permission === 'granted') {
-              new Notification('QuickToken Setup Complete', {
-                body: 'Your dashboard is now configured and ready to use!',
-                icon: '/favicon.ico'
-              });
-            }
-          });
-        }
-      }
-    } catch (e) {
-      console.error('Failed to show notification:', e);
-    }
-    
-    // Notify parent component that setup is complete
-    onComplete(config);
+    // Call the parent component's onComplete handler
+    onComplete(finalConfig);
   };
   
   return (
@@ -1305,12 +1275,12 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
           <div className="flex justify-between items-center">
             <h1 className="text-lg font-bold text-gray-800">QuickToken Setup</h1>
             <div className="flex items-center">
-              <span className="text-sm text-gray-500">Step {step} of 7</span>
+              <span className="text-sm text-gray-500">Step {currentStep} of {totalSteps}</span>
               <div className="ml-3 flex space-x-1">
-                {[1, 2, 3, 4, 5, 6, 7].map(i => (
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
                   <div 
                     key={i} 
-                    className={`w-2 h-2 rounded-full ${step >= i ? 'bg-blue-600' : 'bg-gray-300'}`}
+                    className={`w-2 h-2 rounded-full ${currentStep >= i ? 'bg-blue-600' : 'bg-gray-300'}`}
                   ></div>
                 ))}
               </div>
@@ -1319,23 +1289,28 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
         </div>
         
         <div>
-          {step === 1 && <WelcomeScreen onNext={nextStep} />}
-          {step === 2 && <PlatformSettings config={config} setConfig={setConfig} onNext={nextStep} onBack={prevStep} />}
-          {step === 3 && <WalletSettings config={config} setConfig={setConfig} onNext={nextStep} onBack={prevStep} />}
-          {step === 4 && <BrandingSettings config={config} setConfig={setConfig} onNext={nextStep} onBack={prevStep} />}
-          {step === 5 && <NetworkSettings config={config} setConfig={setConfig} onNext={nextStep} onBack={prevStep} />}
-          {step === 6 && (
+          {currentStep === 1 && <WelcomeScreen onNext={nextStep} />}
+          {currentStep === 2 && <PlatformSettings config={config} setConfig={setConfig} onNext={nextStep} onBack={prevStep} />}
+          {currentStep === 3 && <WalletSettings config={config} setConfig={setConfig} onNext={nextStep} onBack={prevStep} />}
+          {currentStep === 4 && <BrandingSettings config={config} setConfig={setConfig} onNext={nextStep} onBack={prevStep} />}
+          {currentStep === 5 && <NetworkSettings config={config} setConfig={setConfig} onNext={nextStep} onBack={prevStep} />}
+          {currentStep === 6 && (
             <WhitelistSetupStep 
               onComplete={handleWhitelistComplete}
               initialConfig={tempWhitelistConfig}
               onBack={prevStep}
             />
           )}
-          {step === 7 && (
-            <ConfigExportStep 
-              onComplete={handleComplete}
-              onBack={prevStep} 
+          {currentStep === 7 && (
+            <ConfigExportStep
               initialConfig={config}
+              onProceed={nextStep}
+              onBack={prevStep}
+            />
+          )}
+          {currentStep === 8 && (
+            <Step8Complete
+              onComplete={handleCompleteSetup}
             />
           )}
         </div>

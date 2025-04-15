@@ -1,6 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { NETWORKS, NetworkInfo, getNetworkName, getExplorerUrl, getNetworkBadgeClass } from '../shared/constants/networks';
-import { useNotification } from './NotificationContext';
 import { useWallet } from '../hooks/useWallet';
 
 // Define context type
@@ -9,14 +8,11 @@ interface NetworkContextType {
   setNetwork: (network: NetworkInfo) => Promise<boolean>;
   isChangingNetwork: boolean;
   getNetworkByChainId: (chainId: number) => NetworkInfo | undefined;
-  supportedNetworks: NetworkInfo[];
-  addCustomNetwork: (network: NetworkInfo) => void;
-  removeCustomNetwork: (chainId: number) => void;
-  updateNetwork: (network: NetworkInfo) => void;
+  configuredNetworks: NetworkInfo[];
   getNetworkColor: (chainId: number) => string;
   getNetworkName: (chainId: number) => string;
   getExplorerUrl: (chainId: number, address: string, type?: 'tx' | 'address' | 'token') => string;
-  getConfiguredNetworks: () => NetworkInfo[];
+  isConfigLoading: boolean;
 }
 
 // Export NetworkType as an alias to NetworkInfo for backward compatibility 
@@ -48,14 +44,11 @@ const NetworkContext = createContext<NetworkContextType>({
   setNetwork: async () => false,
   isChangingNetwork: false,
   getNetworkByChainId: () => undefined,
-  supportedNetworks: convertToExpandedNetworks(),
-  addCustomNetwork: () => {},
-  removeCustomNetwork: () => {},
-  updateNetwork: () => {},
+  configuredNetworks: [],
   getNetworkColor: () => 'text-gray-500',
   getNetworkName: () => 'Unknown Network',
   getExplorerUrl: () => '#',
-  getConfiguredNetworks: () => []
+  isConfigLoading: true,
 });
 
 // Custom hook to use the network context
@@ -67,206 +60,115 @@ interface NetworkProviderProps {
 
 export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) => {
   const [currentNetwork, setCurrentNetwork] = useState<NetworkInfo | null>(null);
-  const [customNetworks, setCustomNetworks] = useState<NetworkInfo[]>([]);
   const [isChangingNetwork, setIsChangingNetwork] = useState(false);
-  const { showNotification } = useNotification();
-  const { provider } = useWallet();
+  const [isConfigLoading, setIsConfigLoading] = useState(true);
+  const [loadedConfiguredNetworks, setLoadedConfiguredNetworks] = useState<NetworkInfo[]>([]);
+  const wallet = useWallet();
+  const { isConnected, chainId: walletChainId, changeNetwork: walletChangeNetwork } = wallet;
   
-  // Default networks converted to our format
-  const defaultNetworks = convertToExpandedNetworks();
-
-  // Load custom networks from localStorage on mount
-  useEffect(() => {
-    try {
-      const storedCustomNetworks = localStorage.getItem('quicktoken_custom_networks');
-      if (storedCustomNetworks) {
-        setCustomNetworks(JSON.parse(storedCustomNetworks));
+  // Function to load/parse config from storage and update state
+  const loadAndSetConfig = useCallback(() => {
+      console.log('[NetworkContext] Executing loadAndSetConfig...');
+      let networks: NetworkInfo[] = [];
+      let isLoading = true;
+      try {
+        const configString = localStorage.getItem('quicktoken_config');
+        if (configString) {
+          const config = JSON.parse(configString);
+          const enabledNetworksConfig = config?.networks?.configuredNetworks;
+          
+          if (Array.isArray(enabledNetworksConfig)) {
+            networks = enabledNetworksConfig.map((netConf: any): NetworkInfo => ({
+                chainId: parseInt(netConf.chainId),
+                name: netConf.name,
+                shortName: netConf.shortName || netConf.name,
+                isTestnet: netConf.testnet ?? false, 
+                testnet: netConf.testnet ?? false,
+                currency: { 
+                  name: netConf.currencySymbol || 'ETH', 
+                  symbol: netConf.currencySymbol || 'ETH',
+                  decimals: 18 
+                },
+                rpcUrl: netConf.rpcUrl || '', 
+                blockExplorerUrl: netConf.explorerUrl || '',
+                explorerUrl: netConf.explorerUrl || '' 
+            }));
+            console.log('[NetworkContext] Parsed networks:', networks);
+          } else {
+            console.log('[NetworkContext] No configured networks found in config or config structure invalid.');
+          }
+        } else {
+            console.log('[NetworkContext] No quicktoken_config found in localStorage.');
+        }
+      } catch (error) {
+        console.error('Error loading/parsing network configuration from localStorage:', error);
+      } finally {
+          console.log('[NetworkContext] loadAndSetConfig finished. Setting networks and loading state.');
+          setLoadedConfiguredNetworks(networks); // Update state with parsed networks (or empty array)
+          setIsConfigLoading(false); // Set loading false *after* processing
       }
+  }, []); // No dependencies, relies on being called explicitly or by listeners
+
+  // Effect for initial loading 
+  useEffect(() => {
+    console.log('[NetworkContext] Initial mount effect running.');
+    loadAndSetConfig(); // Call the loading function on mount
+  }, [loadAndSetConfig]); // Depend on the memoized loading function
+
+  // Effect to listen for storage changes
+  useEffect(() => {
+      const handleStorageChange = (event: StorageEvent) => {
+          const CONFIG_STORAGE_KEY = 'quicktoken_config'; // Correct key
+          if (event.key === CONFIG_STORAGE_KEY) { 
+            console.log(`[NetworkContext] Storage change detected for ${CONFIG_STORAGE_KEY}. Reloading config.`);
+            loadAndSetConfig(); // Reload config if storage changes
+          }
+      };
       
-      // Try to set last used network from localStorage
-      const lastUsedNetwork = localStorage.getItem('quicktoken_last_network');
-      if (lastUsedNetwork) {
-        const networkData = JSON.parse(lastUsedNetwork);
-        const network = [...defaultNetworks, ...customNetworks].find(n => n.chainId === networkData.chainId);
-        if (network) {
-          setCurrentNetwork(network);
+      window.addEventListener('storage', handleStorageChange);
+      
+      // Cleanup listener
+      return () => {
+          window.removeEventListener('storage', handleStorageChange);
+      };
+  }, [loadAndSetConfig]); // Depend on the memoized loading function
+  
+  // REMOVED Effect that only set loading state 
+  // useEffect(() => { ... }, [configuredNetworks]); 
+
+  // Helper to get network by chain ID (Memoized)
+  const getNetworkByChainId = useCallback((chainId: number): NetworkInfo | undefined => {
+    return loadedConfiguredNetworks.find(network => network.chainId === chainId);
+  }, [loadedConfiguredNetworks]);
+
+  // Effect to synchronize context network with wallet network
+  useEffect(() => {
+    if (isConnected && walletChainId) {
+      const supportedNetwork = getNetworkByChainId(walletChainId);
+      if (supportedNetwork) {
+        if (supportedNetwork.chainId !== currentNetwork?.chainId) {
+          setCurrentNetwork(supportedNetwork);
         }
       } else {
-        // Default to Ethereum Mainnet or first available network
-        setCurrentNetwork(defaultNetworks[0]);
+        if (currentNetwork !== null) { 
+          setCurrentNetwork(null);
+        }
       }
-    } catch (error) {
-      console.error('Error loading network data from localStorage:', error);
+    } else {
+      if (!currentNetwork) {
+        const defaultNetwork = loadedConfiguredNetworks.find(net => net.isDefault);
+        if (defaultNetwork) {
+          setCurrentNetwork(defaultNetwork);
+        }
+      }
     }
-  }, []);
+    // Dependency array: run when connection status or wallet chainId changes, or when network definitions change
+  }, [isConnected, walletChainId, loadedConfiguredNetworks, getNetworkByChainId, currentNetwork]);
 
-  // Save custom networks to localStorage when they change
-  useEffect(() => {
-    if (customNetworks.length > 0) {
-      localStorage.setItem('quicktoken_custom_networks', JSON.stringify(customNetworks));
-    }
-  }, [customNetworks]);
-
-  // Save current network to localStorage when it changes
+  // Save current network to localStorage when it changes (for persistence when disconnected)
   useEffect(() => {
     if (currentNetwork) {
       localStorage.setItem('quicktoken_last_network', JSON.stringify(currentNetwork));
-    }
-  }, [currentNetwork]);
-
-  // All supported networks (predefined + custom)
-  const supportedNetworks = [...defaultNetworks, ...customNetworks];
-
-  // Helper to get network by chain ID
-  const getNetworkByChainId = (chainId: number): NetworkInfo | undefined => {
-    return supportedNetworks.find(network => network.chainId === chainId);
-  };
-
-  // Add custom network
-  const addCustomNetwork = (network: NetworkInfo) => {
-    // Check if network with same chainId already exists
-    if (!supportedNetworks.some(n => n.chainId === network.chainId)) {
-      setCustomNetworks(prev => [...prev, network]);
-      showNotification(`Added network: ${network.name}`, 'success');
-    } else {
-      showNotification(`Network with chain ID ${network.chainId} already exists`, 'error');
-    }
-  };
-
-  // Remove custom network
-  const removeCustomNetwork = (chainId: number) => {
-    // Check if it's a default network
-    if (defaultNetworks.some(n => n.chainId === chainId)) {
-      showNotification('Cannot remove default network', 'error');
-      return;
-    }
-    
-    const networkToRemove = getNetworkByChainId(chainId);
-    if (networkToRemove) {
-      setCustomNetworks(prev => prev.filter(n => n.chainId !== chainId));
-      showNotification(`Removed network: ${networkToRemove.name}`, 'success');
-      
-      // If current network is being removed, switch to default
-      if (currentNetwork?.chainId === chainId) {
-        setCurrentNetwork(defaultNetworks[0]);
-      }
-    }
-  };
-
-  // Function to switch networks
-  const setNetwork = async (network: NetworkInfo): Promise<boolean> => {
-    try {
-      setIsChangingNetwork(true);
-      
-      // If connected to wallet, try to switch network in wallet too
-      if (provider) {
-        // Access the window.ethereum object directly for wallet operations
-        const ethereum = window.ethereum as any;
-        if (ethereum && typeof ethereum.request === 'function') {
-          try {
-            // Try to switch to the network
-            await ethereum.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: `0x${network.chainId.toString(16)}` }],
-            });
-          } catch (switchError: any) {
-            // This error code indicates the chain has not been added to MetaMask
-            if (switchError.code === 4902 || switchError.message?.includes('wallet_addEthereumChain')) {
-              try {
-                await ethereum.request({
-                  method: 'wallet_addEthereumChain',
-                  params: [
-                    {
-                      chainId: `0x${network.chainId.toString(16)}`,
-                      chainName: network.name,
-                      nativeCurrency: {
-                        name: typeof network.currency === 'string' ? network.currency : network.currency.name,
-                        symbol: typeof network.currency === 'string' ? network.currency : network.currency.symbol,
-                        decimals: typeof network.currency === 'string' ? 18 : network.currency.decimals,
-                      },
-                      rpcUrls: [network.rpcUrl],
-                      blockExplorerUrls: [network.explorerUrl],
-                    },
-                  ],
-                });
-              } catch (addError: any) {
-                console.error('Error adding network to wallet:', addError);
-                showNotification(`Failed to add network: ${addError.message}`, 'error');
-                return false;
-              }
-            } else {
-              console.error('Error switching network in wallet:', switchError);
-              showNotification(`Failed to switch network: ${switchError.message}`, 'error');
-              // Continue anyway to update the UI
-            }
-          }
-        }
-      }
-
-      // Update the current network in our state
-      setCurrentNetwork(network);
-      showNotification(`Switched to ${network.name}`, 'info');
-      return true;
-    } catch (error: any) {
-      console.error('Error switching network:', error);
-      showNotification(`Network switch failed: ${error.message}`, 'error');
-      return false;
-    } finally {
-      setIsChangingNetwork(false);
-    }
-  };
-
-  // Set initial network from localStorage or first default
-  useEffect(() => {
-    const initializeNetwork = async () => {
-      // Try to get network from localStorage
-      const savedNetworkJson = localStorage.getItem('currentNetwork');
-      let initialNetwork: NetworkInfo | null = null;
-      
-      if (savedNetworkJson) {
-        try {
-          const savedNetwork = JSON.parse(savedNetworkJson);
-          if (savedNetwork && typeof savedNetwork.chainId === 'number') {
-            const network = getNetworkByChainId(savedNetwork.chainId);
-            if (network) {
-              initialNetwork = network;
-            }
-          }
-        } catch (error) {
-          console.error('Error parsing saved network:', error);
-        }
-      }
-      
-      // If no valid saved network, use the first default
-      if (!initialNetwork) {
-        initialNetwork = defaultNetworks[0];
-      }
-      
-      // Set the network
-      if (initialNetwork) {
-        setCurrentNetwork(initialNetwork);
-        
-        // Try to also set the wallet network if provider exists
-        const ethereum = window.ethereum as any;
-        if (provider && ethereum) {
-          try {
-            await setNetwork(initialNetwork);
-          } catch (error) {
-            console.error('Failed to set initial network:', error);
-          }
-        }
-      }
-    };
-    
-    initializeNetwork();
-  }, [provider]); // Re-run when provider changes
-
-  // Save current network to localStorage when it changes
-  useEffect(() => {
-    if (currentNetwork) {
-      localStorage.setItem('currentNetwork', JSON.stringify({
-        chainId: currentNetwork.chainId,
-      }));
     }
   }, [currentNetwork]);
 
@@ -319,77 +221,73 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
     return getExplorerUrl(chainId, address, type as 'address' | 'tx');
   };
 
-  // Helper function to get configured networks from setup
-  const getConfiguredNetworks = (): NetworkInfo[] => {
-    try {
-      const configString = localStorage.getItem('quicktoken_config');
-      if (configString) {
-        const config = JSON.parse(configString);
-        
-        // Get the list of enabled network chain IDs from config
-        const enabledChainIds = config.networks.configuredNetworks
-          .filter((network: any) => network.isEnabled)
-          .map((network: any) => parseInt(network.chainId));
-        
-        // Filter supportedNetworks to only include enabled networks
-        return supportedNetworks.filter(network => 
-          enabledChainIds.includes(network.chainId)
-        );
-      }
-      
-      // If no config found, just use all supported networks
-      return supportedNetworks;
-    } catch (error) {
-      console.error('Error loading network configuration:', error);
-      // Fallback to all networks
-      return supportedNetworks;
-    }
-  };
-
-  // Add updateNetwork function in the NetworkProvider component
-  const updateNetwork = (network: NetworkInfo) => {
-    // Find if network already exists
-    const existingNetworkIndex = customNetworks.findIndex(n => n.chainId === network.chainId);
-    
-    // If it's a default network, we can't update it
-    if (defaultNetworks.some(n => n.chainId === network.chainId)) {
-      showNotification(`Cannot modify default network: ${network.name}`, 'error');
-      return;
-    }
-    
-    // If network doesn't exist in customNetworks
-    if (existingNetworkIndex === -1) {
-      showNotification(`Network with chain ID ${network.chainId} not found`, 'error');
-      return;
-    }
-    
-    // Update the network
-    const updatedNetworks = [...customNetworks];
-    updatedNetworks[existingNetworkIndex] = network;
-    setCustomNetworks(updatedNetworks);
-    
-    // If current network is being updated, update that too
+  // Function to SET the network (user-initiated)
+  const setNetwork = async (network: NetworkInfo): Promise<boolean> => {
+    // Check if already on this network (based on context state)
     if (currentNetwork?.chainId === network.chainId) {
-      setCurrentNetwork(network);
+      return true; // Already on the desired network
     }
-    
-    showNotification(`Updated network: ${network.name}`, 'success');
+
+    setIsChangingNetwork(true);
+    let success = false;
+
+    try {
+      // Check if wallet is connected and needs switching
+      if (isConnected && walletChainId !== network.chainId) {
+        // Call the centralized changeNetwork function from useWallet
+        console.log('Requesting network switch to ' + network.name + '...');
+        const switchSuccess = await walletChangeNetwork(network.chainId);
+
+        if (!switchSuccess) {
+          // If wallet switch failed (e.g., user rejection), stop here.
+          // The error should be set within useWallet and displayed via its error state.
+          console.warn('Wallet network switch failed or was rejected.');
+          setIsChangingNetwork(false);
+          return false;
+        } else {
+          // Wallet switch successful, proceed to update context state
+          console.log('Wallet network switched successfully via useWallet.');
+          setCurrentNetwork(network);
+          console.log('Switched to ' + network.name);
+          success = true;
+        }
+      } else {
+        // Wallet not connected OR already on the correct chain, just update context state
+        setCurrentNetwork(network);
+        console.log('Set application network to ' + network.name);
+        success = true;
+      }
+    } catch (error: any) {
+      console.error('Error setting network context:', error);
+      console.error('Failed to set network: ' + error.message);
+    } finally {
+      setIsChangingNetwork(false);
+    }
+
+    return success;
   };
 
-  const contextValue: NetworkContextType = {
+  const contextValue: NetworkContextType = useMemo(() => ({
     currentNetwork,
     setNetwork,
     isChangingNetwork,
     getNetworkByChainId,
-    supportedNetworks,
-    addCustomNetwork,
-    removeCustomNetwork,
-    updateNetwork,
+    configuredNetworks: loadedConfiguredNetworks,
+    getNetworkColor: (id) => getNetworkColor(id),
+    getNetworkName: (id) => getNetworkName(id),
+    getExplorerUrl: getCustomExplorerUrl,
+    isConfigLoading,
+  }), [
+    currentNetwork,
+    isChangingNetwork,
+    loadedConfiguredNetworks,
+    getNetworkByChainId,
+    setNetwork,
     getNetworkColor,
     getNetworkName,
-    getExplorerUrl: getCustomExplorerUrl,
-    getConfiguredNetworks
-  };
+    getCustomExplorerUrl,
+    isConfigLoading,
+  ]);
 
   return (
     <NetworkContext.Provider value={contextValue}>

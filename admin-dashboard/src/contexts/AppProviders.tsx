@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { NotificationProvider } from './NotificationContext';
+// import { NotificationProvider } from './NotificationContext'; // Removed
 import { NetworkProvider } from './NetworkContext';
 import { TokenProvider } from './TokenContext';
 import { ThemeProvider } from './ThemeContext';
@@ -22,7 +22,7 @@ interface AppProvidersProps {
 const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
   return (
     <ThemeProvider>
-      <NotificationProvider>
+      {/* <NotificationProvider> */}{/* Removed */}
         <WhitelistProvider>
           <NetworkProvider>
             <TokenProvider>
@@ -30,7 +30,7 @@ const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
             </TokenProvider>
           </NetworkProvider>
         </WhitelistProvider>
-      </NotificationProvider>
+      {/* </NotificationProvider> */}{/* Removed */}
     </ThemeProvider>
   );
 };

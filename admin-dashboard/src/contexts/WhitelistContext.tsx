@@ -34,12 +34,32 @@ export interface WhitelistContextType {
   setIsInSetupMode: (isInSetup: boolean) => void; // New method to set setup mode
   isWhitelistLoading: boolean; // Added loading state
   isPermissionCheckComplete: boolean; // NEW: Flag to signal permission check is done for the current address
+  reloadWhitelist: () => Promise<void>; // <-- Add reload function signature
 }
 
 const WhitelistContext = createContext<WhitelistContextType | undefined>(undefined);
 
 // Local storage key for whitelist
 const WHITELIST_STORAGE_KEY = 'quicktoken_whitelist_config';
+
+// Default context value (add default for reloadWhitelist)
+const defaultWhitelistContext: WhitelistContextType = {
+  whitelist: [],
+  isWhitelisted: false,
+  isOwner: false,
+  allOwners: [],
+  addToWhitelist: () => {},
+  removeFromWhitelist: () => false,
+  addOwner: () => {},
+  removeOwner: () => false,
+  saveWhitelist: () => {},
+  loadWhitelist: () => null,
+  isInSetupMode: false,
+  setIsInSetupMode: () => {},
+  isWhitelistLoading: true,
+  isPermissionCheckComplete: false,
+  reloadWhitelist: async () => {}, // <-- Add default implementation
+};
 
 /**
  * Hook for accessing the whitelist context
@@ -49,7 +69,8 @@ export const useWhitelist = (): WhitelistContextType => {
   if (context === undefined) {
     throw new Error('useWhitelist must be used within a WhitelistProvider');
   }
-  return context;
+  // Return default context if context is undefined
+  return context || defaultWhitelistContext;
 };
 
 interface WhitelistProviderProps {
@@ -264,6 +285,40 @@ Whitelist data: ${JSON.stringify(whitelist)}
     return address ? address.toLowerCase() : '';
   };
   
+  // <-- Add the reloadWhitelist function implementation -->
+  const reloadWhitelist = useCallback(async () => {
+    console.log("[WhitelistContext] reloadWhitelist triggered.");
+    setIsWhitelistLoading(true);
+    setIsPermissionCheckComplete(false); // Reset permission check flag during reload
+    let reloadedEntries: WhitelistEntry[] = [];
+    let source = 'unknown';
+    try {
+      const storedWhitelist = localStorage.getItem(WHITELIST_STORAGE_KEY);
+      if (storedWhitelist) {
+        const parsedConfig = JSON.parse(storedWhitelist);
+        if (parsedConfig && Array.isArray(parsedConfig.entries)) {
+          console.log(`[WhitelistContext] Reload successful. Setting ${parsedConfig.entries.length} entries from localStorage.`);
+          reloadedEntries = parsedConfig.entries;
+          source = 'localStorage (reload)';
+        } else {
+           console.warn("[WhitelistContext] Reload failed: Invalid format in localStorage.");
+           source = 'localStorage (invalid format)';
+        }
+      } else {
+        console.warn("[WhitelistContext] Reload: No whitelist found in localStorage.");
+        source = 'localStorage (empty)';
+      }
+    } catch (error) {
+      console.error("[WhitelistContext] Reload failed during parse/read:", error);
+      source = 'error';
+    } finally {
+      setWhitelist(reloadedEntries); // Update state with reloaded (or empty) entries
+      setIsWhitelistLoading(false);
+      console.log(`[WhitelistContext] Reload finished. Source: ${source}`);
+      // Permission check useEffect will run automatically after this state update
+    }
+  }, [setWhitelist, setIsWhitelistLoading, setIsPermissionCheckComplete]);
+
   // Context value
   const value: WhitelistContextType = {
     whitelist,
@@ -278,8 +333,9 @@ Whitelist data: ${JSON.stringify(whitelist)}
     loadWhitelist: legacyLoadWhitelist,
     isInSetupMode,
     setIsInSetupMode,
-    isWhitelistLoading, // Provide loading state in context value
-    isPermissionCheckComplete // NEW: Expose the flag
+    isWhitelistLoading, 
+    isPermissionCheckComplete,
+    reloadWhitelist // <-- Add reload function to context value
   };
   
   return (

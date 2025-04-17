@@ -7,18 +7,22 @@ QuickToken is a comprehensive ERC-20 token creation template with an intuitive a
 ## Key Features
 
 ### 🌐 Multi-Network Support
+
 Deploy tokens on all major EVM networks including:
+
 - **Mainnet Networks**: Ethereum, Polygon, BSC, Base, Optimism, Arbitrum, Avalanche, Fantom
 - **Testnet Networks**: Sepolia, Goerli, Mumbai, Base Goerli
 - **Additional Networks**: Gnosis, zkSync Era, Linea, Scroll
 
 ### 🔒 Secure Smart Contract
+
 - Built on OpenZeppelin industry standards
 - Configurable mint fee mechanism
 - Customizable token parameters
 - Owner-only administrative functions
 
 ### 💼 Professional Admin Dashboard
+
 - Modern Tailwind CSS design
 - Token deployment with parameter configuration
 - Token management interface
@@ -26,13 +30,14 @@ Deploy tokens on all major EVM networks including:
 - Network switching support
 
 ### ⚙️ Complete Setup Wizard
+
 - Configure platform fee settings
 - Select wallet integrations
-- Customize branding elements
 - Configure supported networks
 - White-label ready
 
 ### 🚀 Deployment Made Easy
+
 - One-click token deployment
 - Token management interface
 - Mint, burn, and transfer functionality
@@ -82,4 +87,4 @@ Deploy tokens on all major EVM networks including:
 - 30-day email support
 - Technical documentation
 - Setup guide
-- Deployment instructions 
+- Deployment instructions

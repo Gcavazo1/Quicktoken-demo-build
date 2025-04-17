@@ -13,6 +13,7 @@ interface ConfigExportProps {
   // Add props to receive config and account when in setup mode
   configForExport?: QuickTokenConfig; 
   accountForExport?: string | null;
+  onExportSuccess?: () => void; // <-- Add new callback prop
 }
 
 /**
@@ -26,7 +27,8 @@ const ConfigExport: React.FC<ConfigExportProps> = ({
   onExportComplete,
   // Destructure new props
   configForExport, 
-  accountForExport 
+  accountForExport,
+  onExportSuccess
 }) => {
   const { isWhitelisted } = useWhitelist();
   const [exportUrl, setExportUrl] = useState<string | null>(null);
@@ -98,6 +100,7 @@ const ConfigExport: React.FC<ConfigExportProps> = ({
   
   const handleDownload = () => {
     setHasDownloaded(true);
+    onExportSuccess?.(); // <-- Call the new callback
     
     // Notify completion through callback and event
     if (onExportComplete) {

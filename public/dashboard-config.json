@@ -1,8 +1,11 @@
 {
   "core": {
     "platformFeeAddress": "0xc94d6e57D9b2D65f5eBEEc12ee3Cf653C4390862",
-    "platformFeePercentage": 22,
-    "infuraId": "",
+    "platformFeePercentage": 25,
+    "theme": "dark",
+    "branding": {
+      "title": "QuickToken Dashboard"
+    },
     "wallets": {
       "metamask": true,
       "coinbase": true
@@ -27,10 +30,80 @@
           "testnet": false
         },
         {
+          "name": "Base Goerli",
+          "chainId": "84531",
+          "rpcUrl": "https://goerli.base.org",
+          "explorerUrl": "https://goerli.basescan.org",
+          "isEnabled": true,
+          "shortName": "",
+          "currencySymbol": "",
+          "testnet": false
+        },
+        {
+          "name": "Gnosis Chain",
+          "chainId": "100",
+          "rpcUrl": "https://rpc.gnosischain.com",
+          "explorerUrl": "https://gnosisscan.io",
+          "isEnabled": true,
+          "shortName": "",
+          "currencySymbol": "",
+          "testnet": false
+        },
+        {
+          "name": "zkSync Era",
+          "chainId": "324",
+          "rpcUrl": "https://mainnet.era.zksync.io",
+          "explorerUrl": "https://explorer.zksync.io",
+          "isEnabled": true,
+          "shortName": "",
+          "currencySymbol": "",
+          "testnet": false
+        },
+        {
+          "name": "Linea",
+          "chainId": "59144",
+          "rpcUrl": "https://rpc.linea.build",
+          "explorerUrl": "https://lineascan.build",
+          "isEnabled": true,
+          "shortName": "",
+          "currencySymbol": "",
+          "testnet": false
+        },
+        {
+          "name": "Scroll",
+          "chainId": "534352",
+          "rpcUrl": "https://rpc.scroll.io",
+          "explorerUrl": "https://scrollscan.com",
+          "isEnabled": true,
+          "shortName": "",
+          "currencySymbol": "",
+          "testnet": false
+        },
+        {
           "name": "Sepolia Testnet",
           "chainId": "11155111",
           "rpcUrl": "https://sepolia.infura.io/v3/your-infura-key",
           "explorerUrl": "https://sepolia.etherscan.io",
+          "isEnabled": true,
+          "shortName": "",
+          "currencySymbol": "",
+          "testnet": false
+        },
+        {
+          "name": "Goerli Testnet",
+          "chainId": "5",
+          "rpcUrl": "https://goerli.infura.io/v3/your-infura-key",
+          "explorerUrl": "https://goerli.etherscan.io",
+          "isEnabled": true,
+          "shortName": "",
+          "currencySymbol": "",
+          "testnet": false
+        },
+        {
+          "name": "Mumbai (Polygon Testnet)",
+          "chainId": "80001",
+          "rpcUrl": "https://rpc-mumbai.maticvigil.com",
+          "explorerUrl": "https://mumbai.polygonscan.com",
           "isEnabled": true,
           "shortName": "",
           "currencySymbol": "",
@@ -105,86 +178,12 @@
           "shortName": "",
           "currencySymbol": "",
           "testnet": false
-        },
-        {
-          "name": "Goerli Testnet",
-          "chainId": "5",
-          "rpcUrl": "https://goerli.infura.io/v3/your-infura-key",
-          "explorerUrl": "https://goerli.etherscan.io",
-          "isEnabled": true,
-          "shortName": "",
-          "currencySymbol": "",
-          "testnet": false
-        },
-        {
-          "name": "Mumbai (Polygon Testnet)",
-          "chainId": "80001",
-          "rpcUrl": "https://rpc-mumbai.maticvigil.com",
-          "explorerUrl": "https://mumbai.polygonscan.com",
-          "isEnabled": true,
-          "shortName": "",
-          "currencySymbol": "",
-          "testnet": false
-        },
-        {
-          "name": "Base Goerli",
-          "chainId": "84531",
-          "rpcUrl": "https://goerli.base.org",
-          "explorerUrl": "https://goerli.basescan.org",
-          "isEnabled": true,
-          "shortName": "",
-          "currencySymbol": "",
-          "testnet": false
-        },
-        {
-          "name": "Gnosis Chain",
-          "chainId": "100",
-          "rpcUrl": "https://rpc.gnosischain.com",
-          "explorerUrl": "https://gnosisscan.io",
-          "isEnabled": true,
-          "shortName": "",
-          "currencySymbol": "",
-          "testnet": false
-        },
-        {
-          "name": "zkSync Era",
-          "chainId": "324",
-          "rpcUrl": "https://mainnet.era.zksync.io",
-          "explorerUrl": "https://explorer.zksync.io",
-          "isEnabled": true,
-          "shortName": "",
-          "currencySymbol": "",
-          "testnet": false
-        },
-        {
-          "name": "Linea",
-          "chainId": "59144",
-          "rpcUrl": "https://rpc.linea.build",
-          "explorerUrl": "https://lineascan.build",
-          "isEnabled": true,
-          "shortName": "",
-          "currencySymbol": "",
-          "testnet": false
-        },
-        {
-          "name": "Scroll",
-          "chainId": "534352",
-          "rpcUrl": "https://rpc.scroll.io",
-          "explorerUrl": "https://scrollscan.com",
-          "isEnabled": true,
-          "shortName": "",
-          "currencySymbol": "",
-          "testnet": false
         }
       ]
     },
-    "branding": {
-      "title": "VERCEL BETA LIVE TEST 1.1"
-    },
-    "theme": "dark",
     "security": {
       "whitelistEnabled": true,
-      "lastWhitelistUpdate": 1744748341560
+      "lastWhitelistUpdate": 1744918301929
     }
   },
   "whitelist": {
@@ -196,45 +195,24 @@
           "owner",
           "admin"
         ],
-        "addedAt": 1744748341560,
-        "id": "19a6a6d3-f4c3-42b1-a44b-c490844cea22"
+        "addedAt": 1744918301929
       },
       {
         "address": "0xae179f858ed23fa6a0246b1ed2f789f5d1b1b1b5",
-        "label": "Owner",
-        "permissions": [
-          "owner",
-          "admin"
-        ],
-        "addedAt": 1744748341560,
-        "id": "ec2cc3dc-be27-4d54-89a1-e19e26a0db3b"
-      },
-      {
-        "address": "0xe70e86777df892d8227261cceea349a2872af4cc",
-        "label": "localtest002",
+        "label": "Admin",
         "permissions": [
           "admin"
         ],
-        "addedAt": 1744748341560,
-        "id": "a5fad9c2-8a42-423b-a672-55a3b29016b5"
-      },
-      {
-        "address": "0xe35d1d69b4a85f630325ee5ad11de83eefa43feb",
-        "label": "localtest004",
-        "permissions": [
-          "admin"
-        ],
-        "addedAt": 1744748341560,
-        "id": "96e8a816-cc56-447b-b1f9-b38ffb2b9b20"
+        "addedAt": 1744918301929
       }
     ],
     "ownerAddress": "0xc94d6e57d9b2d65f5ebeec12ee3cf653c4390862",
-    "lastModified": 1744748341560,
+    "lastModified": 1744918301929,
     "whitelistEnabled": true
   },
   "meta": {
     "version": "1.0.0",
-    "exportedAt": 1744879825630,
-    "exportedBy": "0xae179f858ed23fa6a0246b1ed2f789f5d1b1b1b5"
+    "exportedAt": 1744918305774,
+    "exportedBy": "0xc94d6e57d9b2d65f5ebeec12ee3cf653c4390862"
   }
 }

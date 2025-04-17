@@ -55,7 +55,7 @@ export async function fetchTokenDetailsFromChain(
   provider: Provider,
   networkContext: NetworkContextType
 ): Promise<FetchedTokenDetails> {
-  console.log(`[fetchTokenDetailsFromChain] Fetching details for ${address} on chain ${chainId}`);
+  // console.log(`[fetchTokenDetailsFromChain] Fetching details for ${address} on chain ${chainId}`);
 
   // 1. Verify the network has an explorer URL configured
   const networkInfo = networkContext.getNetworkByChainId(chainId);
@@ -69,12 +69,12 @@ export async function fetchTokenDetailsFromChain(
   }
 
   try {
-    console.log('[fetchTokenDetailsFromChain] Using standard ERC20 ABI to interact with contract');
+    // console.log('[fetchTokenDetailsFromChain] Using standard ERC20 ABI to interact with contract');
     
     // 2. Create a contract instance with the standard ERC20 ABI
     const contract = new ethers.Contract(address, STANDARD_ERC20_ABI, provider);
     
-    console.log('[fetchTokenDetailsFromChain] Calling contract methods...');
+    // console.log('[fetchTokenDetailsFromChain] Calling contract methods...');
     
     // 3. Fetch basic token details one by one with individual error handling
     // This approach is more robust across different wallet providers
@@ -88,48 +88,48 @@ export async function fetchTokenDetailsFromChain(
     
     // Try to get name
     try {
-      console.log('[fetchTokenDetailsFromChain] Fetching name...');
+      // console.log('[fetchTokenDetailsFromChain] Fetching name...');
       name = await contract.name();
-      console.log(`[fetchTokenDetailsFromChain] Name: ${name}`);
+      // console.log(`[fetchTokenDetailsFromChain] Name: ${name}`);
     } catch (error: any) {
-      console.warn('[fetchTokenDetailsFromChain] Failed to fetch name:', error.message);
+      // console.warn('[fetchTokenDetailsFromChain] Failed to fetch name:', error.message);
       // Keep the default value
     }
     
     // Try to get symbol
     try {
-      console.log('[fetchTokenDetailsFromChain] Fetching symbol...');
+      // console.log('[fetchTokenDetailsFromChain] Fetching symbol...');
       symbol = await contract.symbol();
-      console.log(`[fetchTokenDetailsFromChain] Symbol: ${symbol}`);
+      // console.log(`[fetchTokenDetailsFromChain] Symbol: ${symbol}`);
     } catch (error: any) {
-      console.warn('[fetchTokenDetailsFromChain] Failed to fetch symbol:', error.message);
+      // console.warn('[fetchTokenDetailsFromChain] Failed to fetch symbol:', error.message);
       // Keep the default value
     }
     
     // Try to get decimals
     try {
-      console.log('[fetchTokenDetailsFromChain] Fetching decimals...');
+      // console.log('[fetchTokenDetailsFromChain] Fetching decimals...');
       const fetchedDecimals = await contract.decimals();
       decimals = Number(fetchedDecimals);
-      console.log(`[fetchTokenDetailsFromChain] Decimals: ${decimals}`);
+      // console.log(`[fetchTokenDetailsFromChain] Decimals: ${decimals}`);
     } catch (error: any) {
-      console.warn('[fetchTokenDetailsFromChain] Failed to fetch decimals, using default (18):', error.message);
+      // console.warn('[fetchTokenDetailsFromChain] Failed to fetch decimals, using default (18):', error.message);
       // Keep the default value of 18
     }
     
     // Try to get totalSupply
     try {
-      console.log('[fetchTokenDetailsFromChain] Fetching totalSupply...');
+      // console.log('[fetchTokenDetailsFromChain] Fetching totalSupply...');
       totalSupplyWei = await contract.totalSupply();
-      console.log(`[fetchTokenDetailsFromChain] Total Supply (wei): ${totalSupplyWei.toString()}`);
+      // console.log(`[fetchTokenDetailsFromChain] Total Supply (wei): ${totalSupplyWei.toString()}`);
     } catch (error: any) {
-      console.warn('[fetchTokenDetailsFromChain] Failed to fetch totalSupply:', error.message);
+      // console.warn('[fetchTokenDetailsFromChain] Failed to fetch totalSupply:', error.message);
       // Keep the default value
     }
     
     // Try to get owner (optional)
     try {
-      console.log('[fetchTokenDetailsFromChain] Checking if owner() function exists...');
+      // console.log('[fetchTokenDetailsFromChain] Checking if owner() function exists...');
       // Check if owner() exists by trying to estimate gas for a static call
       await provider.estimateGas({
         to: address,
@@ -137,11 +137,11 @@ export async function fetchTokenDetailsFromChain(
       });
       
       // If no error was thrown, call owner()
-      console.log('[fetchTokenDetailsFromChain] Fetching owner...');
+      // console.log('[fetchTokenDetailsFromChain] Fetching owner...');
       owner = await contract.owner();
-      console.log(`[fetchTokenDetailsFromChain] Owner: ${owner}`);
+      // console.log(`[fetchTokenDetailsFromChain] Owner: ${owner}`);
     } catch (error: any) {
-      console.warn('[fetchTokenDetailsFromChain] owner() function not available or failed:', error.message);
+      // console.warn('[fetchTokenDetailsFromChain] owner() function not available or failed:', error.message);
       // Keep the default zero address
     }
     
@@ -157,7 +157,7 @@ export async function fetchTokenDetailsFromChain(
       totalSupply: String(totalSupply)
     };
     
-    console.log('[fetchTokenDetailsFromChain] Token details collected:', result);
+    // console.log('[fetchTokenDetailsFromChain] Token details collected:', result);
     
     // Validate that we have at least a name and symbol
     if (result.name === 'Unknown Token' && result.symbol === 'UNKNOWN') {
@@ -168,7 +168,7 @@ export async function fetchTokenDetailsFromChain(
 
   } catch (error: any) {
     // Handle all other errors
-    console.error('[fetchTokenDetailsFromChain] Error:', error);
+    // console.error('[fetchTokenDetailsFromChain] Error:', error); // Keep console.error
     
     // Rethrow with useful message
     if (error instanceof Error) {

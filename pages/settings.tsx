@@ -200,8 +200,6 @@ const WhitelistTab: React.FC<WhitelistTabProps> = ({
           permissions
         );
         
-        console.log(`Address ${newAddress} added to whitelist as ${selectedRole}.`);
-        
         // Reset form
         setNewAddress('');
         setNewLabel('');
@@ -217,7 +215,7 @@ const WhitelistTab: React.FC<WhitelistTabProps> = ({
         // Attempt to remove using the removeOwner function from context
         const success = removeOwner(address); 
         if (success) {
-            console.log(`Address ${address} removed from whitelist.`);
+            // console.log(`Address ${address} removed from whitelist.`);
         } 
         // Notification for failure (e.g., last owner) is handled within removeOwner context function
       } catch (error: any) {
@@ -428,7 +426,7 @@ const SettingsPage: React.FC = () => { // Removed props
   const [activeTab, setActiveTab] = useState<'platform' | 'networks' | 'brandingTheme' | 'whitelist' | 'exportConfig'>('platform');
   // MODIFIED: State now holds only the CORE config settings managed by this page
   const [currentConfig, setCurrentConfig] = useState<QuickTokenConfig | null>(initialConfig); 
-  const [originalConfig, setOriginalConfig] = useState<QuickTokenConfig | null>(initialConfig); 
+  const [originalConfig, setOriginalConfig] = useState<QuickTokenConfig | null>(initialConfig);
   const [hasChanges, setHasChanges] = useState<boolean>(false);
   // Access control & whitelist hooks - useWhitelist provides functions to update too
   const { 
@@ -471,16 +469,16 @@ const SettingsPage: React.FC = () => { // Removed props
              // MODIFIED: Extract ONLY the 'core' object for state management
              const coreConfig = { ...initialConfig, ...fullLoadedConfig.core }; 
              setCurrentConfig(coreConfig);
-             setOriginalConfig(coreConfig); 
+             setOriginalConfig(coreConfig);
              setIsLoading(false);
-             console.log("Settings CORE configuration loaded from static config");
+             // console.log("Settings CORE configuration loaded from static config");
              return; // Exit if loaded successfully
           } else {
             console.warn("Static config loaded but missing 'core' object or invalid structure.");
           }
         }
         // If fetch failed or response not ok (e.g., 404), proceed to localStorage
-        console.log("Static config not found or invalid, checking localStorage...");
+        // console.log("Static config not found or invalid, checking localStorage...");
 
         // 2. Fallback to localStorage
         const storedConfigRaw = localStorage.getItem('quicktoken_config');
@@ -495,7 +493,7 @@ const SettingsPage: React.FC = () => { // Removed props
               setCurrentConfig(coreConfig);
               setOriginalConfig(coreConfig);
               setIsLoading(false);
-              console.log("Settings CORE configuration loaded from localStorage");
+              // console.log("Settings CORE configuration loaded from localStorage");
               return; // Exit if loaded successfully
             } else {
               console.warn("localStorage config loaded but it's not a valid object.");
@@ -507,7 +505,7 @@ const SettingsPage: React.FC = () => { // Removed props
         }
         
         // 3. If both fail, use initialConfig (which is already core-only)
-        console.log('No valid config found in static file or localStorage. Using initial default core config.');
+        // console.log('No valid config found in static file or localStorage. Using initial default core config.');
         setCurrentConfig(initialConfig); // Use the default core config
         setOriginalConfig(initialConfig);
         // Optionally set an error/warning, or just proceed with defaults
@@ -529,35 +527,35 @@ const SettingsPage: React.FC = () => { // Removed props
   // Step 6: Implement Access Control Check (Simplified Logic with Permission Check Flag)
   useEffect(() => {
     // Log states on each run for debugging
-    console.log(`[Settings Access Check] Effect Run - States: isInitializing=${isInitializing}, isLoading=${isLoading}, isWhitelistLoading=${isWhitelistLoading}, isConnected=${isConnected}, walletAddress=${walletAddress}, isWhitelisted=${isWhitelisted}, isPermissionCheckComplete=${isPermissionCheckComplete}`); // Log new state
+    // console.log(`[Settings Access Check] Effect Run - States: isInitializing=${isInitializing}, isLoading=${isLoading}, isWhitelistLoading=${isWhitelistLoading}, isConnected=${isConnected}, walletAddress=${walletAddress}, isWhitelisted=${isWhitelisted}, isPermissionCheckComplete=${isPermissionCheckComplete}`); // Log new state
 
     // Phase 1: Wait for all loading states AND the permission check for the current address to complete
     // Check isPermissionCheckComplete only if a wallet is connected (otherwise it might stay false)
     const waitingForPermissionCheck = isConnected && !isPermissionCheckComplete;
     if (isInitializing || isLoading || isWhitelistLoading || waitingForPermissionCheck) {
-      console.log(`[Settings Access Check] Waiting: Initializing=${isInitializing}, ConfigLoading=${isLoading}, WhitelistLoading=${isWhitelistLoading}, PermissionCheckPending=${waitingForPermissionCheck}`);
+      // console.log(`[Settings Access Check] Waiting: Initializing=${isInitializing}, ConfigLoading=${isLoading}, WhitelistLoading=${isWhitelistLoading}, PermissionCheckPending=${waitingForPermissionCheck}`);
       setIsAuthorized(null); // Indicate resolution is pending
       return;
     }
 
     // Phase 2: All loading AND relevant permission check are complete. Make the authorization decision.
-    console.log("[Settings Access Check] Loading and permission check complete. Evaluating final authorization...");
+    // console.log("[Settings Access Check] Loading and permission check complete. Evaluating final authorization...");
 
     if (isConnected && walletAddress) {
       // Wallet is connected. isWhitelisted should now be definitive.
       if (isWhitelisted) {
         // Wallet connected AND whitelisted: Authorize access
-        console.log(`[Settings Access Check] Decision: Authorized (isConnected: true, isWhitelisted: true). Allowing access.`);
+        // console.log(`[Settings Access Check] Decision: Authorized (isConnected: true, isWhitelisted: true). Allowing access.`);
         setIsAuthorized(true);
       } else {
         // Wallet connected BUT NOT whitelisted: Redirect
-        console.log(`[Settings Access Check] Decision: Not Authorized (isConnected: true, isWhitelisted: false). Redirecting.`);
+        // console.log(`[Settings Access Check] Decision: Not Authorized (isConnected: true, isWhitelisted: false). Redirecting.`);
         setIsAuthorized(false); 
         router.push('/');
       }
     } else {
       // Wallet is NOT connected after loading finished: Redirect
-      console.log(`[Settings Access Check] Decision: Not Connected (isConnected: false). Redirecting.`);
+      // console.log(`[Settings Access Check] Decision: Not Connected (isConnected: false). Redirecting.`);
       setIsAuthorized(false); 
       router.push('/');
     }
@@ -616,12 +614,12 @@ const SettingsPage: React.FC = () => { // Removed props
       localStorage.setItem('quicktoken_config', JSON.stringify(currentConfig));
       // Ensure setup is marked as complete in localStorage
       localStorage.setItem('quicktoken_setup_complete', 'true');
-      console.log('Settings saved to localStorage.');
+      // console.log('Settings saved to localStorage.');
 
       // 3. Update component state
       setOriginalConfig(currentConfig); 
       setHasChanges(false);
-      console.log('Configuration downloaded successfully.');
+      // console.log('Configuration downloaded successfully.');
       
       // 4. ADDED: Navigate back to the dashboard
       router.push('/'); 
@@ -639,7 +637,7 @@ const SettingsPage: React.FC = () => { // Removed props
     // Restore from the originally loaded config
     setCurrentConfig(originalConfig); 
     setHasChanges(false);
-    console.log('Settings changes discarded.');
+    // console.log('Settings changes discarded.');
   };
 
   // Handle platform fee address change

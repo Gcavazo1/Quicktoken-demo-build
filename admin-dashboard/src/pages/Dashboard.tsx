@@ -97,6 +97,11 @@ const Dashboard: React.FC<DashboardProps> = ({
       localStorage.removeItem('quicktoken_config');
       localStorage.removeItem('quicktokens');
       localStorage.removeItem('quicktoken_theme');
+      localStorage.removeItem('quicktoken_whitelist_config'); // Also clear potentially seeded whitelist
+      localStorage.removeItem('quicktoken_last_network'); // Clear last network
+      
+      // Set the temporary flag to force the setup wizard on next load
+      localStorage.setItem('quicktoken_force_setup', 'true');
       
       document.documentElement.classList.remove('dark');
       document.documentElement.setAttribute('data-theme', 'light');

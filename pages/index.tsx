@@ -13,7 +13,22 @@ const Home: NextPage = () => {
   useEffect(() => {
     const checkConfig = async () => {
       setLoading(true); // Ensure loading is true while we fetch/check
+
+      // --- Add check for force_setup flag --- 
+      if (typeof window !== 'undefined') {
+        const forceSetup = localStorage.getItem('quicktoken_force_setup');
+        if (forceSetup === 'true') {
+          // console.log("[Home Page] quicktoken_force_setup flag is true, forcing SetupWizard.");
+          setSetupComplete(false);
+          setConfig(null); // Ensure no stale config is used
+          setLoading(false);
+          return; // Skip further checks
+        }
+      }
+      // --- End check for force_setup flag ---
+
       try {
+        // console.log("[Home Page] Checking for /dashboard-config.json...");
         const response = await fetch('/dashboard-config.json');
         if (response.ok) {
           // Parse the full JSON response first
@@ -29,11 +44,12 @@ const Home: NextPage = () => {
             localStorage.setItem('quicktoken_setup_complete', 'true');
             localStorage.setItem('quicktoken_config', JSON.stringify(coreConfig));
           } else {
-             console.error('Fetched dashboard-config.json is missing the \'core\' object.');
+             // console.error('Fetched dashboard-config.json is missing the \'core\' object.');
              setSetupComplete(false); // Fallback to wizard if structure is wrong
           }
         } else {
           // Config file not found or fetch failed, proceed to check localStorage
+          // console.log("[Home Page] /dashboard-config.json not found or fetch failed. Checking localStorage...");
           // or show SetupWizard if localStorage is also empty
           if (typeof window !== 'undefined') {
             const isComplete = localStorage.getItem('quicktoken_setup_complete') === 'true';
@@ -44,7 +60,7 @@ const Home: NextPage = () => {
                   setConfig(JSON.parse(savedConfig));
                   setSetupComplete(true); // Set complete if found in localStorage
                 } catch (e) {
-                  console.error('Failed to parse saved configuration from localStorage');
+                  // console.error('Failed to parse saved configuration from localStorage');
                   setSetupComplete(false); // Fallback to wizard if localStorage parsing fails
                 }
               } else {
@@ -58,7 +74,7 @@ const Home: NextPage = () => {
           }
         }
       } catch (error) {
-        console.error('Failed to fetch or parse dashboard-config.json:', error);
+        // console.error('[Home Page] Failed during config checks:', error);
          // Assume setup is not complete if fetch fails entirely
          // Check localStorage as a last resort
          if (typeof window !== 'undefined') {
@@ -70,7 +86,7 @@ const Home: NextPage = () => {
                   setConfig(JSON.parse(savedConfig));
                   setSetupComplete(true);
                 } catch (e) {
-                  console.error('Failed to parse saved configuration from localStorage after fetch error');
+                  // console.error('Failed to parse saved configuration from localStorage after fetch error');
                   setSetupComplete(false);
                 }
               } else {
@@ -83,7 +99,11 @@ const Home: NextPage = () => {
              setSetupComplete(false);
           }
       } finally {
-        setLoading(false); // Set loading to false after all checks are done
+        // Only set loading false here if the force setup flag wasn't hit
+        if (localStorage.getItem('quicktoken_force_setup') !== 'true') {
+          setLoading(false); 
+        }
+        // console.log("[Home Page] Config check finished.");
       }
     };
 

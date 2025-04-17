@@ -1255,7 +1255,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     nextStep(); // Move to verification & export step
   };
   
-  // Function to handle completion of the setup process - Added disconnectWallet call
+  // Function to handle completion of the setup process
   const handleCompleteSetup = () => {
     disconnectWallet(); // Disconnect wallet before finalizing
     // The owner was verified in step 7, we just finalize here.
@@ -1263,6 +1263,9 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     // Save the final configuration (e.g., to localStorage)
     localStorage.setItem('quicktoken_config', JSON.stringify(finalConfig));
     localStorage.setItem('quicktoken_setup_complete', 'true');
+    
+    // Clear the temporary force setup flag
+    localStorage.removeItem('quicktoken_force_setup');
     
     // Call the parent component's onComplete handler
     onComplete(finalConfig);

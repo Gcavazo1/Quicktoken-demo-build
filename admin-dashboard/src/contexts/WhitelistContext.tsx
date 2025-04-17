@@ -128,11 +128,16 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
               
               // ** CRITICAL STEP: If localStorage was empty, seed it with this static data **
               if (usedDataSource === 'localStorage (empty)') {
+                console.log("[WhitelistContext] Condition met: localStorage was empty. Attempting to seed..."); // Log: Seeding condition met
                 try {
-                  localStorage.setItem(WHITELIST_STORAGE_KEY, JSON.stringify(staticWhitelistConfig));
-                  console.log("[WhitelistContext] INFO: Successfully seeded localStorage with data from static config.");
+                  const dataToSave = JSON.stringify(staticWhitelistConfig);
+                  console.log(`[WhitelistContext] Data prepared for seeding localStorage: ${dataToSave.substring(0, 150)}...`); // Log: Data to be saved
+                  localStorage.setItem(WHITELIST_STORAGE_KEY, dataToSave);
+                  // Check if it was actually saved
+                  const checkSavedData = localStorage.getItem(WHITELIST_STORAGE_KEY);
+                  console.log(`[WhitelistContext] INFO: Seeding attempt complete. Data in localStorage post-save: ${checkSavedData ? `'${checkSavedData.substring(0, 100)}...'` : 'null'}`); // Log: Post-save check
                 } catch (saveError) {
-                  console.error("[WhitelistContext] ERROR: Failed to save initial whitelist data to localStorage:", saveError);
+                  console.error("[WhitelistContext] ERROR: Failed during attempt to save initial whitelist data to localStorage:", saveError);
                 }
               }
               

@@ -451,8 +451,7 @@ const SettingsPage: React.FC = () => { // Removed props
     isConnected, 
     isConnecting, 
     provider, // Also get provider to potentially check if initialized
-    isInitializing, // Added new 'isInitializing' flag
-    wallet // Renamed wallet to avoid confusion
+    isInitializing // Added new 'isInitializing' flag
   } = useWallet(); 
 
   // Step 4: Implement Configuration Loading
@@ -529,15 +528,15 @@ const SettingsPage: React.FC = () => { // Removed props
   // Step 6: Implement Access Control Check (Revised - Use Context Flags + Wallet Initialization)
   useEffect(() => {
     // 1. Wait until wallet is initialized AND context loading hooks are finished.
-    if (wallet.isInitializing || isLoading || isWhitelistLoading) {
-      // console.log(`Settings Access: Waiting (isInitializing: ${wallet.isInitializing}, isLoading: ${isLoading}, isWhitelistLoading: ${isWhitelistLoading})`);
+    if (isInitializing || isLoading || isWhitelistLoading) {
+      // console.log(`Settings Access: Waiting (isInitializing: ${isInitializing}, isLoading: ${isLoading}, isWhitelistLoading: ${isWhitelistLoading})`);
       setIsAuthorized(null); // Still resolving state
       return;
     }
 
     // 2. Initialization and loading are done. Now check connection & authorization.
     //    Use flags directly from hooks.
-    if (wallet.isConnected && wallet.address) {
+    if (isConnected && walletAddress) {
       // Wallet connected, check authorization flag from WhitelistContext.
       const authorized = isWhitelisted; 
 
@@ -552,13 +551,13 @@ const SettingsPage: React.FC = () => { // Removed props
       }
     } else {
       // Wallet is definitively disconnected after initialization.
-      console.log(`Settings Access: Wallet disconnected (isConnected: ${wallet.isConnected}, walletAddress: ${wallet.address}). Redirecting.`);
+      console.log(`Settings Access: Wallet disconnected (isConnected: ${isConnected}, walletAddress: ${walletAddress}). Redirecting.`);
       setIsAuthorized(false);
       router.push('/');
     }
 
   // Dependencies now include the wallet initialization flag.
-  }, [wallet.isInitializing, isLoading, isWhitelistLoading, wallet.isConnected, wallet.address, isWhitelisted, router]);
+  }, [isInitializing, isLoading, isWhitelistLoading, isConnected, walletAddress, isWhitelisted, router]);
 
   // Apply branding changes to CSS variables in real-time for preview
   useEffect(() => {

@@ -451,7 +451,8 @@ const SettingsPage: React.FC = () => { // Removed props
     isConnected, 
     isConnecting, 
     provider, // Also get provider to potentially check if initialized
-    isInitializing // Added new 'isInitializing' flag
+    isInitializing, // Added new 'isInitializing' flag
+    connectionAttemptCompleted // Flag indicating all connection attempts are complete
   } = useWallet(); 
 
   // Step 4: Implement Configuration Loading
@@ -525,19 +526,25 @@ const SettingsPage: React.FC = () => { // Removed props
     loadConfig();
   }, []); // Empty dependency array ensures this runs only once on mount
 
-  // Step 6: Implement Access Control Check (Revised - Use Context Flags + Wallet Initialization)
+  // Step 6: Implement Access Control Check (Revised with wait for connection attempt completion)
   useEffect(() => {
-    // 1. Wait until wallet is initialized AND context loading hooks are finished.
-    if (isInitializing || isLoading || isWhitelistLoading) {
-      // console.log(`Settings Access: Waiting (isInitializing: ${isInitializing}, isLoading: ${isLoading}, isWhitelistLoading: ${isWhitelistLoading})`);
+    // Wait until:
+    // 1. Wallet has finished initialization 
+    // 2. Wallet connection attempt is completed (success or failure)
+    // 3. Configuration is loaded
+    // 4. Whitelist is loaded
+    // This ensures all async processes have resolved before making authorization decisions
+    if (isInitializing || !connectionAttemptCompleted || isLoading || isWhitelistLoading) {
+      console.log(`Settings Access: Still initializing... (isInitializing: ${isInitializing}, connectionAttemptCompleted: ${connectionAttemptCompleted}, isLoading: ${isLoading}, isWhitelistLoading: ${isWhitelistLoading})`);
       setIsAuthorized(null); // Still resolving state
       return;
     }
 
-    // 2. Initialization and loading are done. Now check connection & authorization.
-    //    Use flags directly from hooks.
+    console.log(`Settings Access: Initialization complete. Checking access (isConnected: ${isConnected}, walletAddress: ${walletAddress}, isWhitelisted: ${isWhitelisted})`);
+
+    // Now we can be confident the wallet state is finalized
     if (isConnected && walletAddress) {
-      // Wallet connected, check authorization flag from WhitelistContext.
+      // Wallet connected, check authorization flag from WhitelistContext
       const authorized = isWhitelisted; 
 
       setIsAuthorized(authorized);
@@ -550,14 +557,14 @@ const SettingsPage: React.FC = () => { // Removed props
         // Stay on page
       }
     } else {
-      // Wallet is definitively disconnected after initialization.
+      // Wallet is definitively disconnected after full initialization cycle
       console.log(`Settings Access: Wallet disconnected (isConnected: ${isConnected}, walletAddress: ${walletAddress}). Redirecting.`);
       setIsAuthorized(false);
       router.push('/');
     }
 
-  // Dependencies now include the wallet initialization flag.
-  }, [isInitializing, isLoading, isWhitelistLoading, isConnected, walletAddress, isWhitelisted, router]);
+  // Dependencies now include the connectionAttemptCompleted flag
+  }, [isInitializing, connectionAttemptCompleted, isLoading, isWhitelistLoading, isConnected, walletAddress, isWhitelisted, router]);
 
   // Apply branding changes to CSS variables in real-time for preview
   useEffect(() => {
@@ -694,16 +701,49 @@ const SettingsPage: React.FC = () => { // Removed props
     });
   };
 
-  // --- Main Return Structure ---
+  // Adding a simple wallet connection component for the settings page
+  // Create a small connect wallet section that appears if loading is done but user isn't connected
+  const renderConnectWalletSection = () => {
+    if (isLoading || isInitializing || isWhitelistLoading) {
+      return null; // Still loading, don't show connect option yet
+    }
+
+    if (!isConnected && connectionAttemptCompleted) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center p-4">
+          <div className="mb-6 text-center">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Connect Your Wallet</h2>
+            <p className="text-gray-600 dark:text-gray-400">
+              You need to connect your wallet to access dashboard settings
+            </p>
+          </div>
+          
+          <div className="flex flex-col space-y-3 w-full max-w-md">
+            <button 
+              onClick={() => router.push('/')} 
+              className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              Return to Dashboard
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   // Handle loading and error states before rendering main content
-  if (isLoading) {
+  if (isLoading || isInitializing || isWhitelistLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <p className="text-gray-500 dark:text-gray-400">Loading settings...</p>
         {/* Optionally add a spinner here */}
       </div>
     );
+  }
+
+  // Show connect wallet screen if wallet isn't connected after initialization
+  if (!isConnected && connectionAttemptCompleted) {
+    return renderConnectWalletSection();
   }
 
   if (loadError || !currentConfig) {

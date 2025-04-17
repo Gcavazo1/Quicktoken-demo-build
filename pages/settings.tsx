@@ -450,7 +450,9 @@ const SettingsPage: React.FC = () => { // Removed props
     address: walletAddress, 
     isConnected, 
     isConnecting, 
-    provider // Also get provider to potentially check if initialized
+    provider, // Also get provider to potentially check if initialized
+    isInitializing, // Added new 'isInitializing' flag
+    wallet // Renamed wallet to avoid confusion
   } = useWallet(); 
 
   // Step 4: Implement Configuration Loading
@@ -524,22 +526,20 @@ const SettingsPage: React.FC = () => { // Removed props
     loadConfig();
   }, []); // Empty dependency array ensures this runs only once on mount
 
-  // Step 6: Implement Access Control Check (Revised - Use Context Flags)
+  // Step 6: Implement Access Control Check (Revised - Use Context Flags + Wallet Initialization)
   useEffect(() => {
-    // 1. Wait until loading hooks and connection attempts are finished.
-    //    We need isWhitelistLoading to be false before checking isOwner/isWhitelisted.
-    if (isLoading || isWhitelistLoading || isConnecting) {
-      // console.log("Settings Access: Waiting (isLoading/isWhitelistLoading/isConnecting)");
+    // 1. Wait until wallet is initialized AND context loading hooks are finished.
+    if (wallet.isInitializing || isLoading || isWhitelistLoading) {
+      // console.log(`Settings Access: Waiting (isInitializing: ${wallet.isInitializing}, isLoading: ${isLoading}, isWhitelistLoading: ${isWhitelistLoading})`);
       setIsAuthorized(null); // Still resolving state
       return;
     }
 
-    // 2. Loading is done. Check wallet connection AND authorization flags from context.
-    if (isConnected && walletAddress) {
-      // Use isOwner or isWhitelisted directly from the context
-      // Settings page requires at least admin (whitelisted) access.
-      // Specific owner checks can be done within tabs if needed.
-      const authorized = isWhitelisted; // Check if admin or owner
+    // 2. Initialization and loading are done. Now check connection & authorization.
+    //    Use flags directly from hooks.
+    if (wallet.isConnected && wallet.address) {
+      // Wallet connected, check authorization flag from WhitelistContext.
+      const authorized = isWhitelisted; 
 
       setIsAuthorized(authorized);
 
@@ -551,14 +551,14 @@ const SettingsPage: React.FC = () => { // Removed props
         // Stay on page
       }
     } else {
-      // Wallet is definitively disconnected.
-      console.log(`Settings Access: Wallet disconnected (isConnected: ${isConnected}, walletAddress: ${walletAddress}). Redirecting.`);
+      // Wallet is definitively disconnected after initialization.
+      console.log(`Settings Access: Wallet disconnected (isConnected: ${wallet.isConnected}, walletAddress: ${wallet.address}). Redirecting.`);
       setIsAuthorized(false);
       router.push('/');
     }
 
-  // Depend on the actual authorization flags from the context now, plus loading/connection states.
-  }, [isLoading, isWhitelistLoading, isConnecting, isConnected, walletAddress, isWhitelisted, isOwner, router]);
+  // Dependencies now include the wallet initialization flag.
+  }, [wallet.isInitializing, isLoading, isWhitelistLoading, wallet.isConnected, wallet.address, isWhitelisted, router]);
 
   // Apply branding changes to CSS variables in real-time for preview
   useEffect(() => {

@@ -23,6 +23,7 @@ interface WalletContextValue {
   chainId: number | null;
   isConnected: boolean;
   isConnecting: boolean;
+  isInitializing: boolean;
   isNetworkSwitching: boolean;
   error: string | null;
   walletInfo: EIP6963ProviderInfo | null;
@@ -47,6 +48,7 @@ export const useWallet = (): WalletContextValue => {
   const [chainId, setChainId] = useState<number | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
+  const [isInitializing, setIsInitializing] = useState<boolean>(true);
   const [isNetworkSwitching, setIsNetworkSwitching] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [walletInfo, setWalletInfo] = useState<EIP6963ProviderInfo | null>(null);
@@ -62,14 +64,26 @@ export const useWallet = (): WalletContextValue => {
   
   // Check connection state on initial render
   useEffect(() => {
-    // Set mounted flag
     isMountedRef.current = true;
     
-    // Check connection immediately
-    checkConnection();
-    
-    // Set up periodic checking for wallet state changes - less frequent to avoid hammering
-    // and to prevent errors during network changes
+    const initializeConnection = async () => {
+      try {
+        // Check connection immediately
+        await checkConnection();
+      } catch (initError) {
+         console.error("[useWallet Mount] Initial checkConnection failed:", initError);
+         // Error state will be set within checkConnection
+      } finally {
+         // Signal that initialization is complete, regardless of success/failure
+         if (isMountedRef.current) {
+            setIsInitializing(false);
+         }
+      }
+    };
+
+    initializeConnection();
+
+    // Set up periodic checking for wallet state changes
     checkIntervalRef.current = setInterval(checkConnection, 5000);
     
     // Set up listeners for events dispatched by WalletConnector
@@ -92,7 +106,6 @@ export const useWallet = (): WalletContextValue => {
     window.addEventListener('walletDisconnected', handleWalletDisconnect);
 
     return () => {
-      // Set unmounted flag
       isMountedRef.current = false;
       
       // Clean up interval
@@ -443,6 +456,7 @@ export const useWallet = (): WalletContextValue => {
     chainId,
     isConnected,
     isConnecting,
+    isInitializing,
     isNetworkSwitching,
     error,
     walletInfo,

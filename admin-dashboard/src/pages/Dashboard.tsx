@@ -18,6 +18,11 @@ import { Loader2 } from 'lucide-react';
 import WalletSelectorModal from '../components/WalletSelectorModal';
 import { useWallet } from '../hooks/useWallet';
 import { useNetwork, NetworkType } from '../contexts/NetworkContext';
+import Notification from '../components/Notification';
+import { useNotification } from '../contexts/NotificationContext';
+import NetworkSwitch from '../components/NetworkSwitch';
+import Header from '../components/Header';
+import ImportTokenModal from '../components/ImportTokenModal';
 
 // Add type definition for window.ethereum
 declare global {
@@ -42,10 +47,15 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [showResetDialog, setShowResetDialog] = useState<boolean>(false);
   const [showWalletSelector, setShowWalletSelector] = useState<boolean>(false);
   const [availableProviders, setAvailableProviders] = useState<EIP6963ProviderDetail[]>([]);
+  const [tokens, setTokens] = useState<DeployedToken[]>([]);
+  const { isWhitelisted, isOwner } = useWhitelist();
+  const { address: account, provider, isConnected, isInitializing } = useWallet();
+  const { currentNetwork, configuredNetworks } = useNetwork();
+  const { addNotification } = useNotification();
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // --- OTHER HOOKS & INSTANCES ---
   const {
-    tokens,
     ownedTokens,
     isLoading: isTokenLoading,
     error: tokenError,
@@ -54,10 +64,9 @@ const Dashboard: React.FC<DashboardProps> = ({
     refreshNetworkTokens,
     ownedNetworkTokens
   } = useTokens();
-  const { isWhitelisted, isOwner } = useWhitelist();
   const connector = WalletConnector;
   const wallet = useWallet();
-  const { currentNetwork, setNetwork: setContextNetwork } = useNetwork();
+  const { setNetwork: setContextNetwork } = useNetwork();
 
   // --- Add Helper Function from WalletSelectorModal --- 
   const getWalletIcon = (providerInfo: EIP6963ProviderInfo): string => {
@@ -175,75 +184,22 @@ const Dashboard: React.FC<DashboardProps> = ({
       }
   }, [config.theme, setTheme]);
 
+  useEffect(() => {
+    const allTokensByNetwork = loadTokensByNetwork();
+    const currentChainId = currentNetwork?.chainId ? parseInt(currentNetwork.chainId, 10) : null;
+    if (currentChainId) {
+      setTokens(allTokensByNetwork[currentChainId] || []);
+    } else {
+      setTokens([]); // Clear tokens if no network is selected
+    }
+    console.log(`[Dashboard] Tokens loaded for chainId: ${currentChainId}`);
+  }, [currentNetwork]);
+
   // --- RENDER ---
   return (
     <div className="min-h-screen flex flex-col bg-primary text-primary">
-      {/* Header */}
-      <header className="bg-secondary border-b border-border shadow-md">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center">
-              <h1 className="text-xl font-semibold">
-                {config.branding.title}
-              </h1>
-              <div className="flex ml-4 gap-2">
-                {isOwner && (
-                  <button
-                    onClick={handleShowResetDialog}
-                    className="flex items-center text-sm text-secondary bg-tertiary px-3 py-1 rounded-md border border-border hover:bg-hover transition-colors"
-                    title="Reset to setup wizard"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Reset Wizard
-                  </button>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <NetworkSelector
-                currentChainId={wallet.chainId}
-                onNetworkChange={(id) => handleNetworkSelect(id.toString())}
-                className="w-60"
-              />
-              {wallet.isConnected && (
-                <div className="flex items-center space-x-4">
-                  <img 
-                    src={wallet.walletInfo ? getWalletIcon(wallet.walletInfo) : ''}
-                    alt={wallet.walletInfo?.name} 
-                    className="w-5 h-5 rounded-full object-contain"
-                  />
-                  <span className="text-sm font-medium text-primary dark:text-gray-300">
-                    {wallet.walletInfo?.name} ({truncateAddress(wallet.address ?? '')})
-                  </span>
-                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full dark:bg-blue-900 dark:text-blue-200">
-                    Chain: {wallet.chainId}
-                  </span>
-                  <Button
-                    onClick={wallet.disconnectWallet}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center space-x-2 text-secondary hover:text-primary dark:text-gray-300 dark:hover:text-white"
-                    disabled={wallet.isConnecting}
-                  >
-                    {wallet.isConnecting ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 11-6 0v-1m6 0H9" />
-                      </svg>
-                    )}
-                    <span>{wallet.isConnecting ? 'Disconnecting...' : 'Disconnect'}</span>
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header config={config} />
       
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8 flex-1">
         {wallet.isConnected ? (
           <div className="flex flex-col gap-6">
@@ -345,6 +301,11 @@ const Dashboard: React.FC<DashboardProps> = ({
         providers={availableProviders}
         onConnect={(providerDetail) => wallet.connectWallet(providerDetail.info.rdns)}
         isLoading={wallet.isConnecting}
+      />
+
+      <ImportTokenModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
       />
     </div>
   );

@@ -432,15 +432,16 @@ const SettingsPage: React.FC = () => { // Removed props
   const [hasChanges, setHasChanges] = useState<boolean>(false);
   // Access control & whitelist hooks - useWhitelist provides functions to update too
   const { 
+    isWhitelistLoading, 
     isWhitelisted, 
     isOwner, 
-    addOwner, // Function to add owner
-    removeOwner, // Function to remove owner
-    whitelist, // Array of WhitelistEntry { address, label, permissions, addedAt }
-    allOwners, // Array of owner addresses strings
-    isWhitelistLoading, // Added loading state check
-    addToWhitelist // Added addToWhitelist function
-  } = useWhitelist(); 
+    addOwner,
+    removeOwner,
+    whitelist,
+    allOwners,
+    addToWhitelist,
+    isPermissionCheckComplete // NEW: Consume the flag
+  } = useWhitelist(); // Whitelist loading and status
   const [isWhitelistModalOpen, setIsWhitelistModalOpen] = useState(false);
   const { theme, setTheme } = useTheme(); // Moved theme context hook here
   const router = useRouter(); // Initialize router
@@ -525,23 +526,25 @@ const SettingsPage: React.FC = () => { // Removed props
     loadConfig();
   }, []); // Empty dependency array ensures this runs only once on mount
 
-  // Step 6: Implement Access Control Check (Simplified Logic)
+  // Step 6: Implement Access Control Check (Simplified Logic with Permission Check Flag)
   useEffect(() => {
     // Log states on each run for debugging
-    console.log(`[Settings Access Check] Effect Run - States: isInitializing=${isInitializing}, isLoading=${isLoading}, isWhitelistLoading=${isWhitelistLoading}, isConnected=${isConnected}, walletAddress=${walletAddress}, isWhitelisted=${isWhitelisted}`);
+    console.log(`[Settings Access Check] Effect Run - States: isInitializing=${isInitializing}, isLoading=${isLoading}, isWhitelistLoading=${isWhitelistLoading}, isConnected=${isConnected}, walletAddress=${walletAddress}, isWhitelisted=${isWhitelisted}, isPermissionCheckComplete=${isPermissionCheckComplete}`); // Log new state
 
-    // Phase 1: Wait for all loading states to complete
-    if (isInitializing || isLoading || isWhitelistLoading) {
-      console.log("[Settings Access Check] Waiting for loading states...");
+    // Phase 1: Wait for all loading states AND the permission check for the current address to complete
+    // Check isPermissionCheckComplete only if a wallet is connected (otherwise it might stay false)
+    const waitingForPermissionCheck = isConnected && !isPermissionCheckComplete;
+    if (isInitializing || isLoading || isWhitelistLoading || waitingForPermissionCheck) {
+      console.log(`[Settings Access Check] Waiting: Initializing=${isInitializing}, ConfigLoading=${isLoading}, WhitelistLoading=${isWhitelistLoading}, PermissionCheckPending=${waitingForPermissionCheck}`);
       setIsAuthorized(null); // Indicate resolution is pending
       return;
     }
 
-    // Phase 2: All loading is complete. Make the authorization decision based on current state.
-    console.log("[Settings Access Check] Loading complete. Evaluating authorization...");
+    // Phase 2: All loading AND relevant permission check are complete. Make the authorization decision.
+    console.log("[Settings Access Check] Loading and permission check complete. Evaluating final authorization...");
 
     if (isConnected && walletAddress) {
-      // Wallet is connected. Check if whitelisted.
+      // Wallet is connected. isWhitelisted should now be definitive.
       if (isWhitelisted) {
         // Wallet connected AND whitelisted: Authorize access
         console.log(`[Settings Access Check] Decision: Authorized (isConnected: true, isWhitelisted: true). Allowing access.`);
@@ -549,18 +552,18 @@ const SettingsPage: React.FC = () => { // Removed props
       } else {
         // Wallet connected BUT NOT whitelisted: Redirect
         console.log(`[Settings Access Check] Decision: Not Authorized (isConnected: true, isWhitelisted: false). Redirecting.`);
-        setIsAuthorized(false); // Set state before redirecting
+        setIsAuthorized(false); 
         router.push('/');
       }
     } else {
       // Wallet is NOT connected after loading finished: Redirect
       console.log(`[Settings Access Check] Decision: Not Connected (isConnected: false). Redirecting.`);
-      setIsAuthorized(false); // Set state before redirecting
+      setIsAuthorized(false); 
       router.push('/');
     }
 
-  // Dependencies: React to changes in loading states, connection status, and whitelist status.
-  }, [isInitializing, isLoading, isWhitelistLoading, isConnected, walletAddress, isWhitelisted, router]);
+  // Dependencies: React to changes in all relevant states.
+  }, [isInitializing, isLoading, isWhitelistLoading, isConnected, walletAddress, isWhitelisted, isPermissionCheckComplete, router]); // ADDED isPermissionCheckComplete
 
   // Apply branding changes to CSS variables in real-time for preview
   useEffect(() => {

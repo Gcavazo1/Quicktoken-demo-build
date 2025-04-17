@@ -33,6 +33,7 @@ export interface WhitelistContextType {
   isInSetupMode: boolean; // New property to track setup mode
   setIsInSetupMode: (isInSetup: boolean) => void; // New method to set setup mode
   isWhitelistLoading: boolean; // Added loading state
+  isPermissionCheckComplete: boolean; // NEW: Flag to signal permission check is done for the current address
 }
 
 const WhitelistContext = createContext<WhitelistContextType | undefined>(undefined);
@@ -68,6 +69,7 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
   const [isOwner, setIsOwner] = useState(false);
   const [isInSetupMode, setIsInSetupMode] = useState(false);
   const [isWhitelistLoading, setIsWhitelistLoading] = useState(true); // Add loading state, default true
+  const [isPermissionCheckComplete, setIsPermissionCheckComplete] = useState(false); // NEW state
   
   // Load whitelist, prioritizing localStorage but seeding it from static config on first load.
   useEffect(() => {
@@ -164,6 +166,9 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
 
   // Update permissions whenever the connected address changes AFTER whitelist is loaded
   useEffect(() => {
+    // Reset the flag when the check starts or address becomes null
+    setIsPermissionCheckComplete(false); 
+    
     // Only run if the whitelist is NOT loading
     if (isWhitelistLoading) {
       console.log("[WhitelistContext] Permission check skipped - whitelist still loading");
@@ -215,6 +220,7 @@ Whitelist data: ${JSON.stringify(whitelist)}
     }
     
     console.log(`--- [WhitelistContext] PERMISSION CHECK COMPLETE ---`);
+    setIsPermissionCheckComplete(true); // SET flag to true when check finishes
 
   // Trigger specifically when address changes, but only after isWhitelistLoading is false.
   }, [address, isWhitelistLoading, whitelist]); // Keep whitelist as dep in case it ever changes
@@ -272,7 +278,8 @@ Whitelist data: ${JSON.stringify(whitelist)}
     loadWhitelist: legacyLoadWhitelist,
     isInSetupMode,
     setIsInSetupMode,
-    isWhitelistLoading // Provide loading state in context value
+    isWhitelistLoading, // Provide loading state in context value
+    isPermissionCheckComplete // NEW: Expose the flag
   };
   
   return (

@@ -526,13 +526,17 @@ const SettingsPage: React.FC = () => { // Removed props
 
   // Step 6: Implement Access Control Check (Revised)
   useEffect(() => {
-    // Don't run the check until config/whitelist is loading OR wallet is actively connecting
-    if (isLoading || isConnecting || isWhitelistLoading) {
-      setIsAuthorized(null); // Set to null during loading states
-      return; 
+    // Wait if:
+    // 1. Config/Whitelist is loading
+    // 2. Wallet is actively connecting
+    // 3. Wallet is NOT connecting, BUT we don't have an address yet (state update pending after connect)
+    //    (Check isConnected as well to avoid triggering this when genuinely disconnected)
+    if (isLoading || isWhitelistLoading || isConnecting || (!isConnecting && !walletAddress && isConnected)) {
+      setIsAuthorized(null); // Indicate indeterminate state
+      return;
     }
 
-    // Wallet connection attempt finished (isConnecting is false)
+    // Now, proceed with the logic only when connection state is stable and address is available or truly disconnected
     if (isConnected && walletAddress) {
       // Perform direct authorization check using whitelist data
       const normalizedAddress = walletAddress.toLowerCase();
@@ -555,10 +559,10 @@ const SettingsPage: React.FC = () => { // Removed props
       }
 
     } else { 
-      // Wallet is disconnected OR address is missing after connection attempt
-      console.log("Settings Access: Wallet disconnected or address unavailable. Redirecting.");
+      // Wallet is definitely disconnected (isConnected is false or walletAddress is null after checking above)
+      console.log("Settings Access: Wallet disconnected. Redirecting.");
       setIsAuthorized(false);
-      router.push('/'); // ADDED: Redirect if disconnected
+      router.push('/'); // Redirect if disconnected
     }
 
     // Explicitly list dependencies needed for the logic

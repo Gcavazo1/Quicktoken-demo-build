@@ -26,7 +26,7 @@ interface FetchedTokenDetails {
 
 const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) => {
   const { address: walletAddress, provider } = useWallet();
-  const { currentNetwork, configuredNetworks, getRpcUrl } = useNetwork();
+  const { currentNetwork, configuredNetworks } = useNetwork();
   const { addToken } = useTokenContext(); // Assuming context provides an addToken function
 
   const [contractAddress, setContractAddress] = useState('');
@@ -78,11 +78,22 @@ const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) 
       setError('Please ensure address is valid, network is selected, and wallet is connected.');
       return;
     }
+    
+    // Find the selected network configuration
+    const selectedNetworkConfig = configuredNetworks.find(n => n.chainId.toString() === selectedNetworkChainId);
+    if (!selectedNetworkConfig) {
+        setError('Selected network configuration not found.');
+        return;
+    }
+    
+    // Get RPC URL directly from the network config object
+    // const rpcUrl = selectedNetworkConfig.rpcUrl; 
+    // WE DON'T NEED THE RPC URL DIRECTLY - ethers.js uses the connected provider
 
     // Ensure provider is connected to the selected network
     const walletNetwork = await provider.getNetwork();
     if (walletNetwork.chainId.toString() !== selectedNetworkChainId) {
-        setError(`Please switch your wallet to the selected network (${configuredNetworks.find(n => n.chainId === selectedNetworkChainId)?.name || 'Unknown'}).`);
+        setError(`Please switch your wallet to the selected network (${selectedNetworkConfig.name || 'Unknown'}).`);
         return;
     }
 
@@ -92,7 +103,8 @@ const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) 
     setFetchedDetails(null);
 
     try {
-      const contract = new ethers.Contract(contractAddress, minimalErc20Abi, provider);
+      // ethers.js uses the provider which is already connected to the correct network (checked above)
+      const contract = new ethers.Contract(contractAddress, minimalErc20Abi, provider); 
       
       // Fetch details in parallel
       const results = await Promise.allSettled([

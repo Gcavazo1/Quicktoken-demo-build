@@ -484,18 +484,19 @@ const SettingsPage: React.FC = () => { // Removed props
         const storedConfigRaw = localStorage.getItem('quicktoken_config');
         if (storedConfigRaw && storedConfigRaw !== "undefined" && storedConfigRaw !== "null") {
           try {
-            const fullLocalConfig = JSON.parse(storedConfigRaw); // Parse the full structure
-            // Basic validation
-            if (fullLocalConfig && typeof fullLocalConfig === 'object' && fullLocalConfig.core) {
-              // MODIFIED: Extract ONLY the 'core' object for state management
-              const coreConfig = { ...initialConfig, ...fullLocalConfig.core };
+            // MODIFIED: Parse the stored object directly as it should be the core config
+            const loadedCoreConfig = JSON.parse(storedConfigRaw);
+            // Basic validation (check if it's an object)
+            if (loadedCoreConfig && typeof loadedCoreConfig === 'object') {
+              // Use the loaded core config, merging with initialConfig for defaults
+              const coreConfig = { ...initialConfig, ...loadedCoreConfig };
               setCurrentConfig(coreConfig);
               setOriginalConfig(coreConfig);
               setIsLoading(false);
               console.log("Settings CORE configuration loaded from localStorage");
               return; // Exit if loaded successfully
             } else {
-              console.warn("localStorage config loaded but missing 'core' object or invalid structure.");
+              console.warn("localStorage config loaded but it's not a valid object.");
             }
           } catch (parseError) {
             console.error('Failed to parse localStorage config:', parseError);

@@ -103,37 +103,43 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
   useEffect(() => {
     // Only run if the whitelist is NOT loading
     if (isWhitelistLoading) {
-      console.log("[Whitelist Check Effect] Whitelist still loading, skipping permission check.");
+      // console.log("[Whitelist Permission Check] Whitelist still loading, skipping permission check.");
       return; 
     }
 
-    console.log(`[Whitelist Check Effect] Running permission check. Address: ${address}`);
+    console.log(`
+--- [Whitelist Permission Check] START ---
+Address: ${address}
+isWhitelistLoading: ${isWhitelistLoading}
+Checking against whitelist array (length ${whitelist.length}): ${JSON.stringify(whitelist)}
+---`);
+
     const currentAddress = address ? address.toLowerCase() : null;
     
     if (!currentAddress) {
-      console.log("[Whitelist Check Effect] No address, setting permissions false.");
+      console.log("[Whitelist Permission Check] RESULT: No address, setting permissions false.");
       setIsWhitelisted(false);
       setIsOwner(false);
       return;
     }
 
-    // Log the whitelist array being checked against
-    console.log(`[Whitelist Check Effect] Checking against whitelist (length ${whitelist.length}):`, JSON.stringify(whitelist));
-
     const entry = whitelist.find(item => item.address.toLowerCase() === currentAddress);
-    console.log(`[Whitelist Check Effect] Found entry for ${currentAddress}:`, entry ? JSON.stringify(entry) : 'null');
-
+    
     if (entry) {
       const ownerPermission = entry.permissions.includes('owner');
       const adminPermission = entry.permissions.includes('admin');
-      console.log(`[Whitelist Check Effect] Entry found. Setting isOwner: ${ownerPermission}, isWhitelisted: ${ownerPermission || adminPermission}`);
+      const finalWhitelisted = ownerPermission || adminPermission;
+      console.log(`[Whitelist Permission Check] RESULT: Entry found for ${currentAddress}. 
+        Permissions: ${JSON.stringify(entry.permissions)}. 
+        Calculated isOwner: ${ownerPermission}, Calculated isWhitelisted: ${finalWhitelisted}`);
       setIsOwner(ownerPermission);
-      setIsWhitelisted(ownerPermission || adminPermission); 
+      setIsWhitelisted(finalWhitelisted); 
     } else {
-      console.log("[Whitelist Check Effect] No entry found, setting permissions false.");
+      console.log(`[Whitelist Permission Check] RESULT: No entry found for ${currentAddress}, setting permissions false.`);
       setIsWhitelisted(false);
       setIsOwner(false);
     }
+    console.log(`--- [Whitelist Permission Check] END ---`);
 
   // Trigger specifically when address changes, but only after isWhitelistLoading is false.
   }, [address, isWhitelistLoading, whitelist]); // Keep whitelist as dep in case it ever changes

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { DeployedToken } from '../lib/types/tokens';
+import { DeployedToken, TokenAction } from '../lib/types/tokens';
 import TokenActionsForm from './TokenActionsForm';
 import { formatDate } from '../utils/format';
 import { getNetworkName } from '../shared/constants/networks';
@@ -11,7 +11,7 @@ interface TokenDetailModalProps {
   account: string | null;
   provider: Provider | null;
   onClose: () => void;
-  onPerformAction: (token: DeployedToken, action: string, amount: string, recipient?: string) => Promise<boolean>;
+  onPerformAction: (token: DeployedToken, action: TokenAction, amount: string, recipient?: string) => Promise<boolean>;
 }
 
 const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
@@ -96,10 +96,18 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
     return token.owner.toLowerCase() === account.toLowerCase();
   };
 
-  // Handle token action
-  const handleTokenAction = async (action: string, amount: string, recipient?: string) => {
+  // Handle token action - Updated signature
+  const handleTokenAction = async (params: { 
+    token: DeployedToken; 
+    action: TokenAction; 
+    amount?: string; 
+    recipient?: string 
+  }) => {
     if (!token) return false;
-    return onPerformAction(token, action, amount, recipient);
+    // Call the modal's onPerformAction prop with the original signature it expects
+    // Note: The modal's onPerformAction prop itself might need updating if its parent expects the object structure.
+    // For now, we adapt the call here based on the current prop definition.
+    return onPerformAction(params.token, params.action, params.amount || '', params.recipient);
   };
 
   if (!token) return null;
@@ -181,7 +189,8 @@ const TokenDetailModal: React.FC<TokenDetailModalProps> = ({
                   <TokenActionsForm
                     token={token}
                     account={account}
-                    onPerformAction={handleTokenAction}
+                    // Pass the modal's handler which now adapts the call
+                    onPerformAction={handleTokenAction} 
                   />
                 </div>
               )}

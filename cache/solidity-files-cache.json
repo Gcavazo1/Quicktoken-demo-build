@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "C:\\Users\\gcava\\flutter project\\Quicktoken-commercial\\contracts\\QuickToken.sol": {
-      "lastModificationDate": 1744405167300,
-      "contentHash": "6888a3663671e263791c21cb3ede1ca6",
+      "lastModificationDate": 1744849138097,
+      "contentHash": "9373accbec3a50129451e45f58e44474",
       "sourceName": "contracts/QuickToken.sol",
       "solcConfig": {
         "version": "0.8.20",

@@ -1,11 +1,7 @@
 import { ethers } from 'ethers';
-import { QuickTokenABI } from './QuickTokenABI';
 import { DeployedToken, TokenDeployParams, Provider } from './types';
 import { NETWORKS } from '../shared/constants/networks';
-
-// QuickToken contract bytecode (minified)
-// This should be replaced with the actual compiled contract bytecode
-const QuickTokenBytecode = '0x608060405234801561001057600080fd5b50600436106101425760003560e01c8063793ff179116100b8578063a457c2d71161007c578063a457c2d714610349578063a9059cbb14610362578063c492f04614610375578063dd62ed3e14610388578063e222e34e1461039b578063f2fde38b146103ae57600080fd5b8063793ff179146102e35780637a9a5b61146102ee57806388a1eaae146103015780638da5cb5b1461031457806395d89b411461032757600080fd5b80633d8ab1e3116101055780633d8ab1e31461023557806342966c68146102425780634f6ccce7146102555780636352211e14610268578063702376a91461027b57806370a08231146102d057600080fd5b806301ffc9a71461014757806306fdde031461016f578063095ea7b31461018457806318160ddd146101a757806320c8abfa146101b957806323b872dd14610222575b600080fd5b61015a610155366004610b16565b6103c1565b60405190151581526020015b60405180910390f35b6101776103e1565b6040516101669190610b7f565b61015a610192366004610be1565b610473565b6005545b604051908152602001610166565b6101776101c7366004610c0b565b61048d565b6101ab60008051602061109e833981519152546001600160a01b031681565b61015a610230366004610c3d565b61049e565b6101ab60135481565b6101ab610250366004610c7d565b6104c2565b6101ab610263366004610c7d565b6104d0565b6101ab610276366004610c7d565b610512565b61015a610289366004610c96565b60008051602061109e833981519152546001600160a01b03163314610300576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152600b60248201527f4e6f7420616c6c6f7765640000000000000000000000000000000000000000006044820152606401610166565b600092915050565b6101ab6102de366004610cc4565b61051e565b6101ab60125481565b6101ab60008051602061109e833981519152546001600160a01b031690565b6101ab6101ae366004610be1565b61052a565b6000546001600160a01b03165b6040516001600160a01b039091168152602001610166565b6101776105a4565b61015a610357366004610be1565b6105b3565b61015a610370366004610be1565b610633565b6101ab610383366004610c7d565b610641565b6101ab610396366004610be1565b610661565b6101ab60008051602061109e833981519152546001600160a01b031681565b6103bf6103bc366004610cc4565b61068c565b005b60006001600160e01b03198216635a05180f60e01b1480610300575060006103e682610741565b60606103ec60085490565b6040518060400160405280600a8152602001692a32b9ba2aaa102a37b960b11b8152509050919050565b600061048033848461075d565b50600192915050565b61049682610882565b90505b919050565b60006104ab848484610960565b6104b78484846109e5565b1490505b9392505050565b60006103008261051e565b60006104e560118054600181600116156101000203166002900490501590565b6104b78660118054600181600116156101000203166002900490501590565b6000610499826103c1565b60006104993383610512565b600080610535610a83565b61054a6001600160a01b0384168230610960565b610552610a83565b61055c8483610512565b61056584610512565b61056d610a83565b600061057e89886000878761075d565b9050610589826103c1565b61059289610512565b6105a4565b600063a9059cbb60e01b9695505050505050565b60606105af60085490565b905090565b6000336001600160a01b03841614156105e25760405162461bcd60e51b815260040161016690610cdd565b6001600160a01b0384166000908152600c602052604090205460ff1615610300576105158285858480806020026020016040528093929190818152602001838360200280828437600081840152601f19601f82011690508083019250505050505050610a85565b600061048033848461075d565b60006104998261051e565b60008061066c610a83565b610674610a83565b600092835250602090910152919050565b60008051602061109e833981519152546001600160a01b0316331461071f5760405162461bcd60e51b815260206004820152602660248201527f4f776e61626c653a2063616c6c6572206973206e6f7420746865206f776e657260448201527f20000000000000000000000000000000000000000000000000000000000000006064820152608401610166565b60008051602061109e83398151915280546001600160a01b0319166001600160a01b0392909216919091179055565b600063a9059cbb60e01b4a101580610300575060006103e682610a8a565b6001600160a01b038316610812576040517f08c379a000000000000000000000000000000000000000000000000000000000815260206004820152602660248201527f45524332303a20617070726f76652066726f6d20746865207a65726f2061646460448201527f72657373000000000000000000000000000000000000000000000000000000006064820152608401610166565b6001600160a01b03821661087e576040517f08c379a0000000000000000000000000000000000000000000000000000000008152602060048201526024808201527f45524332303a20617070726f766520746f20746865207a65726f20616464726560448201527f73730000000000000000000000000000000000000000000000000000000000006064820152608401610166565b505050565b60606000825160026108939190610d3b565b67ffffffffffffffff8111156108aa576108aa610d5156b6040519080825280601f01601f1916602001820160405280156108d4576020820181803683370190505b50905060005b838110156109585760018484015181106108f5576108f5610d6756b602001015160f81c60f81b818381518110610912576109126107d066576b6c613a6b69636b6f757454696d657360a81b83525061095b56b60f81b8383815181106108c9576108c9610d6756b6001016108da56b50939250505056b600063a9059cbb60e01b3a101580610a065750836001600160a01b03166109fb8461051256b6016001600160a01b0316145b80610a775750604051630a85bd0160e11b81526001600160a01b0385169063150b7a0290610a3a903390879086906004016107d056b602060405180830381600087803b158015610a5457600080fd5b505af1925050508015610a74575060408051601f3d908101601f19168201909252610a7191810190610d7d56b60015b6104bb575060009594505050505056b90509056b50505056b3a9059cbb60e01b8083019850601c019750909550935050505054600160e01b8110610ab5575060006104993356b600080610148571919825400610ad0575060206104993356b6024830112156105055760246104993356b634e487b7160e01b600052604160045260246000fd5b600060208284031215610b2857600080fd5b81356001600160e01b031981168114610b4057600080fd5b939250505056b6000815180845260005b81811015610b6d57602081850181015186830182015201610b5156b81811115610b7f576000602083870101525b50601f01601f1916929092016020019291505056b602081526000610b406020830184610b4756b80356001600160a01b0381168114610bd957600080fd5b600060208284031215610bf457600080fd5b610bfd83610bc256b94602093909301359350505056b600060208284031215610c1d57600080fd5b503591905056b60208082526022908201527f45524332303a20617070726f766520746f20746865207a65726f206164647265604082015261737360f01b60608201526080019056b634e487b7160e01b600052601160045260246000fd5b634e487b7160e01b600052604160045260246000fd5b634e487b7160e01b600052603260045260246000fd5b600060208284031215610d8f57600080fd5b815180151581146104995760008051602061109e833981519152546001600160a01b031681525063a9059cbb60e01b02946000929190a1';
+import { QuickTokenInterface } from './QuickTokenArtifact';
 
 /**
  * Deploy a new QuickToken contract
@@ -26,23 +22,103 @@ export async function deployToken(
   const network = await provider.getNetwork();
   const signerAddress = await signer.getAddress();
 
-  // console.log('Deploying token with parameters:', params);
-  // console.log('Deployer address:', signerAddress);
-  // console.log('Network:', network.name, '(', network.chainId, ')');
-
   try {
+    console.log('Starting deployment with parameters:', params);
+    
     // Convert values to appropriate format
     const initialSupplyWei = ethers.parseEther(params.initialSupply);
     const maxSupplyWei = ethers.parseEther(params.maxSupply);
 
-    // Create contract factory
+    // Use ethers.js v6 approach for Contract creation
+    console.log('Creating contract factory...');
+    
+    console.log('ABI:', JSON.stringify(QuickTokenInterface.abi).substring(0, 100) + '...');
+    console.log('Bytecode length:', QuickTokenInterface.bytecode.length);
+    
+    // Set deployment options with gas limit to avoid out-of-gas errors
+    // Gas price will be determined automatically by ethers.js (legacy or EIP-1559 based on network)
+    const deployOptions: { gasLimit: bigint } = {
+      gasLimit: BigInt(12000000), // Default 12 million gas units
+    };
+    
+    // DEBUG: Inspect bytecode before using it
+    console.log('Type of bytecode being passed to Factory:', typeof QuickTokenInterface.bytecode);
+    console.log('Bytecode value (first 100 chars):', QuickTokenInterface.bytecode.substring(0, 100));
+    console.log('Is bytecode a valid hex string (basic check)?', /^0x[0-9a-fA-F]*$/.test(QuickTokenInterface.bytecode));
+
+    // Use ethers.js v6 ContractFactory with Interface object
     const factory = new ethers.ContractFactory(
-      QuickTokenABI,
-      QuickTokenBytecode,
+      QuickTokenInterface.abi,
+      QuickTokenInterface.bytecode,
       signer
     );
 
-    // Deploy contract
+    console.log('Contract factory created successfully');
+
+    // Deploy contract with detailed logging and options
+    console.log('Preparing deployment transaction...');
+    
+    // Log constructor parameters
+    console.log('Constructor params:', {
+      name: params.name,
+      symbol: params.symbol,
+      initialSupplyWei: initialSupplyWei.toString(),
+      maxSupplyWei: maxSupplyWei.toString(),
+      mintFeeBps: params.mintFeeBps,
+      unlockTime: params.unlockTime,
+      platformFeeAddress: params.platformFeeAddress
+    });
+    
+    // Estimate gas before deploying to catch potential errors
+    try {
+      console.log('Estimating gas...');
+      const estimatedGas = await factory.getDeployTransaction(
+        params.name,
+        params.symbol,
+        initialSupplyWei,
+        maxSupplyWei,
+        params.mintFeeBps,
+        params.unlockTime,
+        params.platformFeeAddress,
+        params.platformFeePercentageBps
+      ).then(tx => provider.estimateGas(tx));
+      
+      console.log('Estimated gas:', estimatedGas.toString());
+      
+      // Update gas limit if estimation succeeds
+      deployOptions.gasLimit = BigInt(estimatedGas) * BigInt(120) / BigInt(100); // 20% buffer
+      console.log('Using gas limit:', deployOptions.gasLimit.toString());
+    } catch (gasError: any) {
+      // Handle specific estimation errors more gracefully
+      if (gasError.code === 'CALL_EXCEPTION' && gasError.data?.startsWith('0x1e4fbdf7')) {
+        // Likely the "Unlock time must be in the future" error during estimation
+        console.warn('Gas estimation failed potentially due to unlock time check. Proceeding with default gas limit.');
+        // Use the default gas limit already set in deployOptions
+      } else {
+        // For other estimation errors, log them but still proceed with default
+        console.error('Gas estimation failed:', gasError);
+        console.error('Gas estimation error code:', gasError.code);
+        console.error('Gas estimation error data:', gasError.data);
+        console.log('Falling back to default gas limit:', deployOptions.gasLimit.toString());
+      }
+      // Fallback gas limit is already set in deployOptions, so we just continue
+    }
+    
+    // DEBUG: Log final constructor arguments and types before deployment
+    const finalArgs = [
+      params.name,
+      params.symbol,
+      initialSupplyWei,
+      maxSupplyWei,
+      params.mintFeeBps,
+      params.unlockTime,
+      params.platformFeeAddress,
+      params.platformFeePercentageBps
+    ];
+    console.log('Final constructor args being passed:', finalArgs);
+    console.log('Argument types:', finalArgs.map(arg => typeof arg + (typeof arg === 'bigint' ? ' (BigInt)' : '')));
+
+    console.log('Deploying contract with options:', deployOptions);
     const contract = await factory.deploy(
       params.name,
       params.symbol,
@@ -50,16 +126,28 @@ export async function deployToken(
       maxSupplyWei,
       params.mintFeeBps,
       params.unlockTime,
-      params.platformFeeAddress
+      params.platformFeeAddress,
+      params.platformFeePercentageBps,
+      deployOptions
     );
 
-    const txHash = contract.deploymentTransaction()?.hash;
-    // console.log('Deployment transaction sent:', txHash);
+    // Get deployment transaction - ethers v6 pattern
+    const deployTx = contract.deploymentTransaction();
+    
+    if (!deployTx) {
+      throw new Error('Deployment transaction not created');
+    }
+    
+    console.log('Deployment transaction sent:', deployTx.hash);
 
     // Wait for deployment to finish
-    await contract.waitForDeployment();
+    console.log('Waiting for deployment confirmation...');
+    const receipt = await deployTx.wait();
+    console.log('Transaction confirmed in block:', receipt?.blockNumber);
+    
+    // Get contract address with ethers v6 pattern
     const contractAddress = await contract.getAddress();
-    // console.log('Contract deployed at:', contractAddress);
+    console.log('Contract deployed at:', contractAddress);
 
     // Create token object
     const token: DeployedToken = {
@@ -72,7 +160,7 @@ export async function deployToken(
       mintFeeBps: params.mintFeeBps,
       unlockTime: params.unlockTime,
       platformFeeAddress: params.platformFeeAddress,
-      platformFeePercentage: 2000, // Default 20% in basis points
+      platformFeePercentage: params.platformFeePercentageBps,
       owner: signerAddress,
       totalSupply: params.initialSupply,
       paused: false,
@@ -82,123 +170,148 @@ export async function deployToken(
 
     return token;
   } catch (error: any) {
-    console.error('Token deployment failed:', error);
-    throw new Error(`Deployment failed: ${error.message || 'Unknown error'}`);
+    // Check if the user rejected the transaction in their wallet
+    if (error.code === 'ACTION_REJECTED') {
+      console.warn('User rejected the deployment transaction.');
+      // Propagate a user-friendly error message instead of the raw ethers error
+      throw new Error('Deployment cancelled by user.'); 
+    } else {
+      // Handle other deployment errors
+      console.error('Token deployment failed:', error);
+      
+      // Enhanced error reporting for other errors
+      if (error.code) {
+        console.error('Error code:', error.code);
+      }
+      if (error.reason) {
+        console.error('Error reason:', error.reason);
+      }
+      if (error.transaction) {
+        console.error('Error transaction data length:', error.transaction.data?.length);
+        console.error('Error transaction from:', error.transaction.from);
+        console.error('Error transaction to:', error.transaction.to);
+      }
+      if (error.error) {
+        console.error('Inner error:', error.error);
+      }
+      
+      // Throw a generic failure message for other errors
+      throw new Error(`Deployment failed: ${error.reason || error.message || 'Unknown error'}`);
+    }
   }
 }
 
 /**
- * Load deployed tokens from local storage
- * @returns Array of deployed tokens
+ * Load deployed tokens from local storage, returning a network-organized object.
+ * @returns Record<number, DeployedToken[]> Tokens organized by chain ID, or {} if none/error.
  */
-export function loadDeployedTokens(): DeployedToken[] {
+export function loadTokensByNetwork(): Record<number, DeployedToken[]> {
   try {
     const tokensJson = localStorage.getItem('quicktokens');
-    if (!tokensJson) return [];
+    if (!tokensJson) return {};
     
-    // Parse tokens from storage
-    const rawTokens = JSON.parse(tokensJson);
-    
-    // Handle both formats: array or network-organized object
-    if (Array.isArray(rawTokens)) {
-      // Legacy format (array) - return as is
-      return rawTokens;
-    } else {
-      // New format (object by network) - flatten all networks into a single array
-      const allTokens: DeployedToken[] = [];
-      Object.values(rawTokens).forEach((networkTokens: any) => {
-        if (Array.isArray(networkTokens)) {
-          allTokens.push(...networkTokens);
-        }
-      });
-      return allTokens;
+    const parsedData = JSON.parse(tokensJson);
+
+    // Basic validation to ensure it's an object (might be old array format)
+    if (typeof parsedData !== 'object' || parsedData === null || Array.isArray(parsedData)) {
+        console.warn('Stored token data is not in the expected network-organized format. Attempting conversion or returning empty.');
+        // Handle potential legacy array format - Convert it
+        if (Array.isArray(parsedData)) {
+            const organized: Record<number, DeployedToken[]> = {};
+            parsedData.forEach((token: DeployedToken) => {
+                if (token && typeof token === 'object' && token.chainId) {
+                    const networkId = token.chainId;
+                    if (!organized[networkId]) organized[networkId] = [];
+                    organized[networkId].push(token);
+                } else {
+                    console.warn('Skipping invalid token data during conversion:', token);
+                }
+            });
+            // Save the converted format back
+            localStorage.setItem('quicktokens', JSON.stringify(organized));
+            return organized;
+        } 
+        // Otherwise, it's invalid, return empty
+        return {};
     }
+    
+    // It's likely the correct object format
+    // Perform a deeper check later if needed
+    return parsedData as Record<number, DeployedToken[]>;
+
   } catch (error) {
-    console.error('Failed to load tokens from localStorage:', error);
-    return [];
+    console.error('Failed to load or parse tokens from localStorage:', error);
+    return {}; // Return empty object on error
   }
 }
 
 /**
- * Save deployed token to local storage
+ * Save deployed token to local storage (maintains network-organized structure).
  * @param token Token to save
  */
 export function saveDeployedToken(token: DeployedToken): void {
+  if (!token || !token.chainId) {
+      console.error('Attempted to save invalid token data:', token);
+      return;
+  }
   try {
-    // Get existing tokens (as array)
-    const existingTokens = loadDeployedTokens();
+    // Get existing tokens directly as network-organized object
+    const organizedTokens = loadTokensByNetwork();
     
-    // Check if token already exists
-    const existingIndex = existingTokens.findIndex(
-      (t) => t.address.toLowerCase() === token.address.toLowerCase() && t.chainId === token.chainId
+    const chainIdKey = token.chainId.toString(); // Use string key for object
+    const networkTokens = organizedTokens[token.chainId] || [];
+
+    // Check if token already exists within this network's array
+    const existingIndex = networkTokens.findIndex(
+      (t) => t.address.toLowerCase() === token.address.toLowerCase()
     );
     
-    // Update or add the token
+    // Update or add the token within the specific network array
     if (existingIndex >= 0) {
-      existingTokens[existingIndex] = token;
+      networkTokens[existingIndex] = token;
     } else {
-      existingTokens.push(token);
+      networkTokens.push(token);
     }
     
-    // Convert to network-organized structure
-    const organizedTokens: { [chainId: string]: DeployedToken[] } = {};
+    // Update the main object with the modified network array
+    organizedTokens[token.chainId] = networkTokens;
     
-    existingTokens.forEach(t => {
-      const chainIdKey = t.chainId.toString();
-      if (!organizedTokens[chainIdKey]) {
-        organizedTokens[chainIdKey] = [];
-      }
-      organizedTokens[chainIdKey].push(t);
-    });
-    
-    // Save organized tokens to localStorage
+    // Save the updated organized structure back to localStorage
     localStorage.setItem('quicktokens', JSON.stringify(organizedTokens));
+
   } catch (error) {
     console.error('Failed to save token to localStorage:', error);
   }
 }
 
 /**
- * Save multiple tokens at once, useful when refreshing a whole network's token data
- * @param tokens Array of tokens to save
- * @param chainId Optional chain ID to filter tokens by
+ * (Refactor Recommended if Used) Save multiple tokens at once.
  */
 export function saveMultipleTokens(tokens: DeployedToken[], chainId?: number): void {
+  console.warn('saveMultipleTokens is using potentially outdated logic and might need refactoring.');
   try {
-    // Get existing tokens
-    const existingTokens = loadDeployedTokens();
-    const updatedTokens = [...existingTokens];
+    // This function needs refactoring to work correctly with the new object storage format
+    // It currently flattens and re-organizes, which is inefficient.
+    const organizedTokens = loadTokensByNetwork();
     
-    // Update tokens
     tokens.forEach(token => {
       // If chainId is provided, only save tokens on that network
       if (chainId !== undefined && token.chainId !== chainId) {
         return;
       }
-      
-      const existingIndex = updatedTokens.findIndex(
-        (t) => t.address.toLowerCase() === token.address.toLowerCase() && t.chainId === token.chainId
+      const targetChainId = token.chainId;
+      const networkTokens = organizedTokens[targetChainId] || [];
+      const existingIndex = networkTokens.findIndex(
+        (t) => t.address.toLowerCase() === token.address.toLowerCase()
       );
-      
       if (existingIndex >= 0) {
-        updatedTokens[existingIndex] = token;
+        networkTokens[existingIndex] = token;
       } else {
-        updatedTokens.push(token);
+        networkTokens.push(token);
       }
+      organizedTokens[targetChainId] = networkTokens;
     });
     
-    // Convert to network-organized structure
-    const organizedTokens: { [chainId: string]: DeployedToken[] } = {};
-    
-    updatedTokens.forEach(t => {
-      const chainIdKey = t.chainId.toString();
-      if (!organizedTokens[chainIdKey]) {
-        organizedTokens[chainIdKey] = [];
-      }
-      organizedTokens[chainIdKey].push(t);
-    });
-    
-    // Save organized tokens to localStorage
     localStorage.setItem('quicktokens', JSON.stringify(organizedTokens));
   } catch (error) {
     console.error('Failed to save tokens to localStorage:', error);

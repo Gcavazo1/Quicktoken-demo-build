@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { ethers } from 'ethers';
 import { DeployedToken, TokenDeployParams, TokenAction } from '../lib/types/tokens';
 import { QuickTokenABI } from '../lib/QuickTokenABI';
-import { deployToken, loadDeployedTokens, saveDeployedToken, saveMultipleTokens } from '../lib/deployToken';
+import { deployToken as libDeployToken, loadTokensByNetwork, saveDeployedToken, saveMultipleTokens } from '../lib/deployToken';
 import { Provider } from '../lib/types/web3';
 import { useNetwork } from './NetworkContext';
 import { useWallet } from '../hooks/useWallet';
@@ -19,7 +19,7 @@ interface TokenContextValue {
   isLoading: boolean;
   error: string | null;
   selectedToken: DeployedToken | null;
-  deployToken: (params: TokenDeployParams) => Promise<string | null>;
+  deployToken: (params: TokenDeployParams) => Promise<DeployedToken | null>;
   performTokenAction: (params: {
     token: DeployedToken;
     action: TokenAction;
@@ -110,90 +110,53 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
   ), [tokens, account, chainId]);
   
   // Load tokens from localStorage on initial render
-  useEffect(() => {
-    loadTokens();
-  }, []);
-  
-  // Filter selected token by current connected account when address changes
-  useEffect(() => {
-    if (selectedToken && account) {
-      // Check if the selected token is owned by the current account
-      if (selectedToken.owner.toLowerCase() !== account.toLowerCase()) {
-        setSelectedToken(null);
-      }
-    }
-  }, [account, selectedToken]);
-  
-  // Filter selected token by current network when chainId changes
-  useEffect(() => {
-    if (selectedToken && chainId) {
-      // Check if the selected token is on the current network
-      if (selectedToken.chainId !== chainId) {
-        setSelectedToken(null);
-      }
-    }
-  }, [chainId, selectedToken]);
-  
-  // Effect to refresh token list when chainId changes
-  useEffect(() => {
-    if (!chainId || !account || !provider) return;
-    refreshNetworkTokens();
-  }, [chainId, account, provider]); // Dependencies updated to use state from useWallet
-  
-  /**
-   * Load tokens from localStorage and set active tokens based on current chainId
-   */
-  const loadTokens = () => {
+  const loadTokens = useCallback(() => {
+    console.log('[TokenContext] loadTokens started...');
     try {
-      const storedTokens = localStorage.getItem('quicktokens');
-      if (storedTokens) {
-        const parsedTokens = JSON.parse(storedTokens) as DeployedToken[];
-        
-        // Organize tokens by network
-        const tokensByNetwork: Record<number, DeployedToken[]> = {};
-        parsedTokens.forEach(token => {
-          if (!tokensByNetwork[token.chainId]) {
-            tokensByNetwork[token.chainId] = [];
-          }
-          tokensByNetwork[token.chainId].push(token);
-        });
-        
-        setAllNetworksTokens(tokensByNetwork);
-        
-        // Set active tokens based on current chainId (now derived from useWallet)
-        if (chainId && tokensByNetwork[chainId]) {
-          setTokens(tokensByNetwork[chainId]);
-        } else {
-          // If no chainId, set to empty array initially
-          setTokens([]);
-        }
+      // Use the new helper function which returns the network-organized object
+      const loadedNetworkTokens = loadTokensByNetwork(); 
+      console.log('[TokenContext] loadTokensByNetwork returned:', loadedNetworkTokens); 
+      
+      // Set the state containing all tokens organized by network
+      setAllNetworksTokens(loadedNetworkTokens);
+      
+      // Derive the active 'tokens' state from the loaded map based on current chainId
+      if (chainId) {
+        const currentNetworkTokens = loadedNetworkTokens[chainId] || [];
+        console.log(`[TokenContext] Setting active tokens for chain ${chainId}:`, currentNetworkTokens);
+        setTokens(currentNetworkTokens);
+      } else {
+        console.log('[TokenContext] No network connected, setting active tokens to empty.');
+        setTokens([]); // Set empty if no chainId connected
       }
     } catch (error) {
-      console.error('Failed to load tokens from localStorage:', error);
+      console.error('Failed to load tokens:', error);
+      setAllNetworksTokens({});
+      setTokens([]);
     }
-  };
+  }, [chainId]); // Dependency includes chainId so it re-runs when network changes
+
+  // Load tokens on initial mount and when chainId changes
+  useEffect(() => {
+    loadTokens();
+  }, [loadTokens]); // Depend on the memoized loadTokens function
   
   /**
    * Refresh tokens for the currently connected network
    */
   const refreshNetworkTokens = useCallback(async () => {
-    console.log('[TokenContext] Refreshing tokens for network:', chainId);
-    if (chainId && allNetworksTokens[chainId]) {
-      setTokens([...allNetworksTokens[chainId]]); // Update with fresh copy
-    } else if (chainId) {
-      setTokens([]); // Set to empty if no tokens for this network
-    } else {
-      // If disconnected, tokens should already be empty via useEffect[chainId]
-    }
+    // Simply re-run loadTokens which now correctly reads from localStorage and sets state
+    console.log('[TokenContext] Refresh triggered, reloading tokens...');
+    loadTokens();
     // Note: Add logic here later to re-fetch on-chain data if necessary
-  }, [chainId, allNetworksTokens]);
+  }, [loadTokens]);
   
   /**
-   * Deploy a new token
+   * Submit a deployment request, handle deployment, save result, and update state.
    * @param params Token deployment parameters
-   * @returns The address of the newly deployed token, or null if deployment failed
+   * @returns Promise<DeployedToken | null> The deployed token object or null on failure.
    */
-  const deployNewToken = async (params: TokenDeployParams): Promise<string | null> => {
+  const submitDeployment = async (params: TokenDeployParams): Promise<DeployedToken | null> => {
     if (!isConnected || !provider || !account || !chainId) {
       setError('Wallet not connected or chain ID missing');
       return null;
@@ -203,79 +166,28 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
     setError(null);
     
     try {
-      // Get signer from provider
-      const signer = await provider.getSigner();
+      // Call the library function to perform the actual deployment
+      console.log('[TokenContext] Calling library deployToken...');
+      const newToken = await libDeployToken(provider, params);
+      console.log('[TokenContext] Library deployToken returned:', newToken);
       
-      // Convert values to contract format
-      const initialSupplyWei = ethers.parseEther(params.initialSupply);
-      const maxSupplyWei = ethers.parseEther(params.maxSupply);
-      
-      // Create contract factory with ABI and bytecode from QuickTokenABI
-      const factory = new ethers.ContractFactory(
-        QuickTokenABI as ethers.InterfaceAbi,
-        (QuickTokenABI as any).bytecode,
-        signer
-      );
-      
-      // Deploy the contract
-      const contract = await factory.deploy(
-        params.name,
-        params.symbol,
-        initialSupplyWei,
-        maxSupplyWei,
-        params.mintFeeBps,
-        params.unlockTime,
-        params.platformFeeAddress
-      );
-      
-      // Wait for deployment confirmation
-      await contract.waitForDeployment();
-      
-      // Get contract address
-      const contractAddress = await contract.getAddress();
-      
-      // Get network info
-      const network = getNetworkByChainId(chainId);
-      const networkName = network?.name || `Network ${chainId}`;
-      
-      // Create token record
-      const newToken: DeployedToken = {
-        address: contractAddress,
-        name: params.name,
-        symbol: params.symbol,
-        initialSupply: params.initialSupply,
-        maxSupply: params.maxSupply,
-        decimals: 18, // ETH-compatible tokens use 18 decimals
-        mintFeeBps: params.mintFeeBps,
-        unlockTime: params.unlockTime,
-        platformFeeAddress: params.platformFeeAddress,
-        platformFeePercentage: params.mintFeeBps / 100, // Convert bps to percentage
-        owner: account,
-        totalSupply: params.initialSupply,
-        paused: false,
-        deployedAt: Math.floor(Date.now() / 1000),
-        chainId: chainId
-      };
-      
-      // Save the new token
+      // Save the new token using the library function
+      console.log('[TokenContext] Saving new token to localStorage:', newToken);
       saveDeployedToken(newToken);
+      console.log('[TokenContext] Token saved. Reloading tokens state...');
       
-      // Update state immediately
-      setAllNetworksTokens(prev => ({
-        ...prev,
-        [newToken.chainId]: [...(prev[newToken.chainId] || []), newToken]
-      }));
-      // Update active tokens if the new token is on the current network
-      if (newToken.chainId === chainId) {
-         setTokens(prev => [...prev, newToken]);
-      }
+      // Reload state from localStorage to include the new token
+      loadTokens(); 
       
-      console.log(`Token ${newToken.name} deployed successfully!`);
-      return contractAddress;
+      console.log(`Token ${newToken.name} deployment submitted and state reloaded!`);
+      return newToken; // Return the full token object on success
+
     } catch (error: any) {
-      console.error('Token deployment failed:', error);
-      setError(`Deployment failed: ${error.message}`);
-      return null;
+      // Handle errors from libDeployToken (including user rejection)
+      console.error('Token deployment submission failed:', error);
+      // Set error state based on the caught error
+      setError(error.message || 'Deployment failed for an unknown reason.'); 
+      return null; // Indicate failure
     } finally {
       setIsLoading(false);
     }
@@ -297,12 +209,28 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
     amount?: string;
     recipient?: string;
   }): Promise<boolean> => {
-    if (!provider || !account) {
+    setIsLoading(true);
+    setError(null);
+  
+    if (!provider) {
+      setError('No provider available');
+      setIsLoading(false);
+      return false;
+    }
+
+    if (!account) {
       setError('Wallet not connected');
+      setIsLoading(false);
       return false;
     }
     
-    // Check if we're on the correct network
+    // Early check for paused tokens - prevents transfer attempts entirely
+    if (token.paused && (action === 'transfer')) {
+      setError('Token transfers are paused');
+      setIsLoading(false);
+      throw new Error('Token transfers are paused');
+    }
+    
     if (chainId !== token.chainId) {
       const network = getNetworkByChainId(token.chainId);
       const networkName = network?.name || `Network ${token.chainId}`;
@@ -310,45 +238,83 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
       return false;
     }
     
-    setIsLoading(true);
-    setError(null);
-    
     try {
-      // Get signer from provider
       const signer = await provider.getSigner();
-      
-      // Create contract instance
       const contract = new ethers.Contract(token.address, QuickTokenABI, signer);
       
-      // Perform the requested action
       let tx;
+      let txOptions: ethers.Overrides = {}; // Initialize transaction options
       
       switch (action) {
         case 'mint':
-          if (!amount) {
-            throw new Error('Amount is required for minting');
+          if (!amount) throw new Error('Amount is required for minting');
+          const mintAmountWei = ethers.parseUnits(amount, token.decimals); // Use token specific decimals
+          
+          // Calculate required mint fee
+          const requiredFeeWei = await contract.calculateMintFee(mintAmountWei);
+          console.log(`[TokenContext] Calculated mint fee (wei): ${requiredFeeWei.toString()}`);
+          
+          // Check user's balance before attempting mint
+          const userBalance = await provider.getBalance(account);
+          console.log(`[TokenContext] User ETH balance: ${userBalance.toString()}`);
+          console.log(`[TokenContext] Required ETH (fee + gas estimate): ${requiredFeeWei.toString()}`);
+          
+          // We need the fee amount plus some ETH for gas (~0.01 ETH for safety margin)
+          const estimatedGasCost = ethers.parseEther("0.01"); // Safety margin for gas
+          const totalRequired = requiredFeeWei + estimatedGasCost;
+          
+          if (userBalance < totalRequired) {
+            const shortfall = totalRequired - userBalance;
+            console.log(`[TokenContext] Insufficient funds. Short by: ${ethers.formatEther(shortfall)} ETH`);
+            
+            // Set error state but DON'T throw - just return early
+            const errorMessage = `Insufficient ETH in your wallet. You need approximately ${ethers.formatEther(totalRequired)} ETH but only have ${ethers.formatEther(userBalance)} ETH.`;
+            setError(errorMessage);
+            setIsLoading(false);
+            return false; // Return false without throwing an actual Error object
           }
           
-          const mintAmountWei = ethers.parseEther(amount);
-          tx = await contract.mint(mintAmountWei);
+          txOptions.value = requiredFeeWei; // Set the msg.value for the transaction
+          console.log(`[TokenContext] Sending mint transaction with value: ${txOptions.value}`);
+          
+          // If balance check passed, proceed with the transaction
+          tx = await contract.mint(account, mintAmountWei, txOptions); 
           break;
           
         case 'burn':
-          if (!amount) {
-            throw new Error('Amount is required for burning');
-          }
-          
-          const burnAmountWei = ethers.parseEther(amount);
+          if (!amount) throw new Error('Amount is required for burning');
+          const burnAmountWei = ethers.parseUnits(amount, token.decimals); // Use token specific decimals
           tx = await contract.burn(burnAmountWei);
           break;
           
         case 'transfer':
           if (!amount || !recipient) {
-            throw new Error('Amount and recipient are required for transfers');
+            setError('Amount and recipient are required for transfers');
+            setIsLoading(false);
+            return false;
           }
           
-          const transferAmountWei = ethers.parseEther(amount);
-          tx = await contract.transfer(recipient, transferAmountWei);
+          const transferAmountWei = ethers.parseUnits(amount, token.decimals); // Use token specific decimals
+          
+          try {
+            // Explicitly estimate gas first to catch reverts early
+            await contract.transfer.estimateGas(recipient, transferAmountWei);
+            
+            // If estimateGas didn't throw, proceed with the actual transaction
+            tx = await contract.transfer(recipient, transferAmountWei);
+          } catch (transferError: any) {
+            // Handle transfer errors without throwing
+            console.error(`[TokenContext] Transfer estimateGas failed:`, transferError);
+            let errorMsg = 'Failed to transfer tokens';
+            
+            if (transferError.message) {
+              errorMsg = transferError.message.replace('execution reverted: ', '');
+            }
+            
+            setError(errorMsg);
+            setIsLoading(false);
+            return false;
+          }
           break;
           
         case 'pause':
@@ -360,25 +326,50 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
           break;
           
         case 'approve':
-          if (!amount || !recipient) {
-            throw new Error('Amount and recipient are required for approvals');
-          }
-          
-          const approveAmountWei = ethers.parseEther(amount);
+          if (!amount || !recipient) throw new Error('Amount and recipient are required for approvals');
+          const approveAmountWei = ethers.parseUnits(amount, token.decimals); // Use token specific decimals
           tx = await contract.approve(recipient, approveAmountWei);
           break;
       }
       
-      // Wait for transaction confirmation
+      console.log(`[TokenContext] Transaction submitted (${action}), waiting for confirmation...`, tx.hash);
       await tx.wait();
+      console.log(`[TokenContext] Transaction confirmed (${action}):`, tx.hash);
       
       // Refresh token info after action
       await refreshTokenInfo(token.address);
       
       return true;
     } catch (error: any) {
-      console.error(`Token action '${action}' failed:`, error);
-      setError(error.message || `Failed to perform ${action}`);
+      console.error(`[TokenContext] Token action '${action}' failed:`, error);
+      // Attempt to parse more specific contract revert reasons or user actions
+      let errorMessage = `Failed to perform ${action}`;
+      
+      // Enhanced rejection detection - check multiple patterns
+      const isRejection = 
+        error.code === 'ACTION_REJECTED' || 
+        error.code === 4001 || 
+        (error.info?.error?.code === 4001) ||
+        error.message?.includes('rejected') ||
+        error.message?.includes('denied') ||
+        error.reason === 'rejected';
+        
+      if (isRejection) {
+        errorMessage = "Transaction rejected by user.";
+      } else if (error.code === 'INSUFFICIENT_FUNDS') {
+          errorMessage = "Insufficient ETH in your wallet to cover transaction fee and mint cost.";
+      } else if (error.reason) { // Ethers v6 often includes reason for reverts
+         errorMessage = error.reason;
+      } else if (error.data?.message) { // Check for nested error messages
+         errorMessage = error.data.message;
+      } else if (error.message) {
+         errorMessage = error.message;
+      }
+      // Clean up common prefixes
+      errorMessage = errorMessage.replace('execution reverted: ', '').replace('VM Exception while processing transaction: reverted with reason string ','');
+
+      setError(errorMessage);
+      // Instead of re-throwing, return false with the error message
       return false;
     } finally {
       setIsLoading(false);
@@ -438,17 +429,23 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
       // Create contract instance
       const contract = new ethers.Contract(tokenAddress, QuickTokenABI, provider);
       
-      // Get updated token info
-      const [totalSupplyWei, paused] = await Promise.all([
+      // Get updated token info & user balance
+      const callPromises = [
         contract.totalSupply(),
         contract.paused()
-      ]);
+      ];
+      if (account) { // Only fetch balance if account is connected
+        callPromises.push(contract.balanceOf(account));
+      }
+      
+      const [totalSupplyWei, paused, userBalanceWei] = await Promise.all(callPromises);
       
       // Update token
-      const updatedToken = {
+      const updatedToken: DeployedToken = {
         ...token,
-        totalSupply: ethers.formatEther(totalSupplyWei),
-        paused: paused
+        totalSupply: ethers.formatUnits(totalSupplyWei, token.decimals), // Use formatUnits
+        paused: paused,
+        userBalance: account && userBalanceWei ? ethers.formatUnits(userBalanceWei, token.decimals) : undefined // Use formatUnits
       };
       
       // Update tokens for this network
@@ -685,25 +682,27 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
   // Wrap saveTokens in useCallback
   const saveTokens = useCallback((updatedTokens: DeployedToken[], targetChainId: number) => {
     try {
-      // Update network-specific tokens
+      // Update network-specific tokens in state
       const updatedNetworkTokens = {
         ...allNetworksTokens,
         [targetChainId]: updatedTokens
       };
       
-      // Flatten all tokens for storage
-      const allTokens = Object.values(updatedNetworkTokens).flat();
-      
-      // Save to localStorage
-      localStorage.setItem('quicktokens', JSON.stringify(allTokens));
-      
-      // Update state
+      // Update state first
       setAllNetworksTokens(updatedNetworkTokens);
       
       // Update current tokens if we're on this network
       if (chainId === targetChainId) {
         setTokens(updatedTokens);
       }
+      
+      // Save each updated token to localStorage using the helper function
+      // This ensures consistent storage format
+      updatedTokens.forEach(token => {
+        // Make sure the token has the right chainId before saving
+        const tokenToSave = { ...token, chainId: targetChainId };
+        saveDeployedToken(tokenToSave);
+      });
     } catch (error) {
       console.error('Failed to save tokens to localStorage:', error);
     }
@@ -718,10 +717,9 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
   }, [provider, chainId, refreshNetworkTokens]);
   
   // Wrap functions intended for context value in useCallback
-  const deployNewTokenCallback = useCallback(deployNewToken, [isConnected, provider, account, chainId, allNetworksTokens, getNetworkByChainId, saveTokens]);
-  const performTokenActionCallback = useCallback(performTokenAction, [provider, account, chainId, getNetworkByChainId, refreshTokenInfo]); // refreshTokenInfo needs to be stable
+  const submitDeploymentCallback = useCallback(submitDeployment, [isConnected, provider, account, chainId, loadTokens]);
+  const performTokenActionCallback = useCallback(performTokenAction, [provider, account, chainId, getNetworkByChainId, refreshTokenInfo]);
   const refreshTokenInfoCallback = useCallback(refreshTokenInfo, [provider, chainId, allNetworksTokens, selectedToken, saveTokens]);
-  // refreshNetworkTokens is already wrapped in useCallback
   const refreshAllTokensCallback = useCallback(refreshAllTokens, [provider, chainId, refreshNetworkTokens]);
   const selectTokenCallback = useCallback(selectToken, [allNetworksTokens]);
   const getOwnedTokensCallback = useCallback(getOwnedTokens, [account, allNetworksTokens]);
@@ -733,18 +731,17 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
   // Compile context value - use useMemo
   const contextValue = useMemo((): TokenContextValue => ({
     tokens,
-    ownedTokens, // Recalculated inline, but memoized by useMemo overall
-    networkTokens, // Recalculated inline, but memoized by useMemo overall
-    ownedNetworkTokens, // Recalculated inline, but memoized by useMemo overall
+    ownedTokens,
+    networkTokens,
+    ownedNetworkTokens,
     allNetworksTokens,
     isLoading,
     error,
     selectedToken,
-    // Use the useCallback wrapped functions
-    deployToken: deployNewTokenCallback, 
+    deployToken: submitDeploymentCallback,
     performTokenAction: performTokenActionCallback,
     refreshTokenInfo: refreshTokenInfoCallback,
-    refreshNetworkTokens, // Already useCallback
+    refreshNetworkTokens,
     refreshAllTokens: refreshAllTokensCallback,
     selectToken: selectTokenCallback,
     getOwnedTokens: getOwnedTokensCallback,
@@ -752,27 +749,26 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
     getOwnedNetworkTokens: getOwnedNetworkTokensCallback,
     findToken: findTokenCallback,
     importToken: importTokenCallback
-  // Dependencies for useMemo: all state and stable functions used
-  }), [ 
-    tokens, 
-    ownedTokens, 
-    networkTokens, 
-    ownedNetworkTokens, 
+  }), [
+    tokens,
+    ownedTokens,
+    networkTokens,
+    ownedNetworkTokens,
     allNetworksTokens,
-    isLoading, 
-    error, 
-    selectedToken, 
-    deployNewTokenCallback, 
+    isLoading,
+    error,
+    selectedToken,
+    submitDeploymentCallback,
     performTokenActionCallback,
-    refreshTokenInfoCallback, 
-    refreshNetworkTokens, 
-    refreshAllTokensCallback, 
-    selectTokenCallback, 
-    getOwnedTokensCallback, 
-    getNetworkTokensCallback, 
-    getOwnedNetworkTokensCallback, 
-    findTokenCallback, 
-    importTokenCallback 
+    refreshTokenInfoCallback,
+    refreshNetworkTokens,
+    refreshAllTokensCallback,
+    selectTokenCallback,
+    getOwnedTokensCallback,
+    getNetworkTokensCallback,
+    getOwnedNetworkTokensCallback,
+    findTokenCallback,
+    importTokenCallback
   ]);
 
   return (

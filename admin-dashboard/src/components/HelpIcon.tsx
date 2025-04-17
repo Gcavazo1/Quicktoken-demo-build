@@ -57,17 +57,19 @@ const HelpIcon: React.FC<HelpIconProps> = ({
   
   return (
     <span className="inline-block relative ml-1 align-middle">
-      <button
-        ref={iconRef}
-        type="button"
-        className="text-gray-400 hover:text-gray-500 focus:outline-none"
+      <span
+        ref={iconRef as any}
+        className="text-gray-400 hover:text-gray-500 focus:outline-none cursor-pointer"
         onClick={() => setIsVisible(prev => !prev)}
+        role="button"
         aria-haspopup="true"
         aria-expanded={isVisible}
         aria-label="Show help information"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setIsVisible(prev => !prev); }}
       >
         <span className="bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300 w-4 h-4 rounded-full inline-flex items-center justify-center text-xs font-bold">?</span>
-      </button>
+      </span>
       
       {isVisible && (
         <div 

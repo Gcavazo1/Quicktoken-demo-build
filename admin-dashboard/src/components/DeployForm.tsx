@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { deployToken } from '../lib/deployToken';
 import { TokenDeployParams, DeployedToken } from '../lib/types';
 import { getNetworkName } from '../shared/constants/networks';
 import { QuickTokenConfig } from '../pages/SetupWizard';
@@ -13,7 +12,7 @@ interface DeployFormProps {
   provider: ethers.BrowserProvider | null;
   account: string | null;
   chainId: number | null;
-  onDeploySuccess: (token: DeployedToken) => void;
+  onSubmitDeployment: (params: TokenDeployParams) => Promise<DeployedToken | null>;
   config: QuickTokenConfig;
 }
 
@@ -21,7 +20,7 @@ const DeployForm: React.FC<DeployFormProps> = ({
   provider, 
   account, 
   chainId, 
-  onDeploySuccess,
+  onSubmitDeployment,
   config
 }) => {
   // Default values
@@ -66,9 +65,21 @@ const DeployForm: React.FC<DeployFormProps> = ({
   // Convert unix timestamp to date string for the input field
   useEffect(() => {
     if (unlockTime) {
-      const date = new Date(parseInt(unlockTime) * 1000);
-      const localDate = date.toISOString().slice(0, 16);
-      setUnlockDate(localDate);
+      try {
+        // First validate if we have a valid timestamp
+        const timestamp = parseInt(unlockTime);
+        if (!isNaN(timestamp) && timestamp > 0) {
+          const date = new Date(timestamp * 1000);
+          // Check if date is valid before calling toISOString()
+          if (!isNaN(date.getTime())) {
+            const localDate = date.toISOString().slice(0, 16);
+            setUnlockDate(localDate);
+          }
+        }
+      } catch (error) {
+        // Silently ignore conversion errors during typing
+        console.log("Date conversion error:", error);
+      }
     }
   }, [unlockTime]);
 
@@ -81,9 +92,20 @@ const DeployForm: React.FC<DeployFormProps> = ({
 
   // Handle date input change
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const date = new Date(e.target.value).getTime() / 1000;
-    setUnlockTime(Math.floor(date).toString());
-    setUnlockDate(e.target.value);
+    try {
+      const inputValue = e.target.value;
+      setUnlockDate(inputValue); // Always update the visual input
+
+      // Only convert to timestamp if we have a valid date
+      const dateObj = new Date(inputValue);
+      if (!isNaN(dateObj.getTime())) {
+        const timestamp = Math.floor(dateObj.getTime() / 1000);
+        setUnlockTime(timestamp.toString());
+      }
+    } catch (error) {
+      // Just update the visual input without changing the timestamp
+      console.log("Date input error:", error);
+    }
   };
 
   // Handle percentage input change
@@ -148,7 +170,7 @@ const DeployForm: React.FC<DeployFormProps> = ({
   const handleDeploy = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!provider || !account) {
+    if (!account) {
       setError('Please connect your wallet first');
       console.error('Please connect your wallet first');
       return;
@@ -161,42 +183,47 @@ const DeployForm: React.FC<DeployFormProps> = ({
     setIsDeploying(true);
     setError('');
     
-    // Log deployment start
-    console.log(`Deploying ${name} token...`);
+    // Prepare deployment parameters
+    const platformFeePercentageBps = Math.round((config.platformFeePercentage || 0) * 100);
     
-    try {
-      // Prepare deployment parameters
-      const params: TokenDeployParams = {
-        name,
-        symbol,
-        initialSupply,
-        maxSupply,
-        mintFeeBps: parseInt(mintFeeBps),
-        unlockTime: parseInt(unlockTime),
-        platformFeeAddress
-      };
+    const params: TokenDeployParams = {
+      name,
+      symbol,
+      initialSupply,
+      maxSupply,
+      mintFeeBps: parseInt(mintFeeBps),
+      unlockTime: parseInt(unlockTime),
+      platformFeeAddress,
+      platformFeePercentageBps
+    };
+
+    console.log(`Submitting deployment for ${name} token...`, params);
+    
+    // Call the context action passed via props
+    const success = await onSubmitDeployment(params);
       
-      // Deploy token
-      const token = await deployToken(provider, params);
-      
+    if (success) {
       // Log deployment success
-      console.log(`Successfully deployed ${name} (${symbol}) token!`);
+      console.log(`Deployment submitted successfully for ${name} (${symbol})!`);
       
-      // Call success callback
-      onDeploySuccess(token);
-      
-      // Reset form
+      // Reset form on successful submission
       setName('');
       setSymbol('');
-      setError('');
+      // Keep existing error state cleared or set by the context
+      setError(''); 
       
-    } catch (err: any) {
-      console.error('Deployment error:', err);
-      setError(err.message || 'Error deploying token');
-      console.error(err.message || 'Error deploying token');
-    } finally {
-      setIsDeploying(false);
-    }
+    } else {
+      // Error occurred during context action (deploy/save/load)
+      // Error state should already be set by the context, but we log it here too
+      console.error('Deployment submission failed (error should be set in context).');
+      // Optionally: setError('Deployment failed. Check console or context error.');
+    } 
+
+    // No specific catch block needed here anymore for deployment errors,
+    // as the context handles them. We catch validation/setup errors earlier.
+    
+    // Reset loading state regardless of outcome
+    setIsDeploying(false);
   };
   
   // Check if wallet is connected
@@ -412,7 +439,17 @@ const DeployForm: React.FC<DeployFormProps> = ({
               type="datetime-local"
               value={unlockDate}
               onChange={handleDateChange}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              onKeyDown={(e) => {
+                e.preventDefault();
+              }}
+              onClick={(e) => {
+                try {
+                  e.currentTarget.showPicker();
+                } catch (error) {
+                  console.error("Could not show date picker:", error);
+                }
+              }}
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
               required
             />
             <p className="mt-1 text-sm text-gray-400">

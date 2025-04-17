@@ -13,6 +13,7 @@ export interface TokenDeployParams {
   mintFeeBps: number;
   unlockTime: number;
   platformFeeAddress: string;
+  platformFeePercentageBps: number;
 }
 
 /**
@@ -37,6 +38,7 @@ export interface DeployedToken {
   owner: string;
   totalSupply: string;
   paused: boolean;
+  userBalance?: string; // Optional: User's balance (fetched on demand)
   
   // Metadata
   deployedAt: number;

@@ -51,7 +51,8 @@ const Dashboard: React.FC<DashboardProps> = ({
     error: tokenError,
     deployToken,
     performTokenAction,
-    refreshNetworkTokens
+    refreshNetworkTokens,
+    ownedNetworkTokens
   } = useTokens();
   const { isWhitelisted, isOwner } = useWhitelist();
   const connector = WalletConnector;
@@ -279,9 +280,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   provider={wallet.provider}
                   account={wallet.address}
                   chainId={wallet.chainId}
-                  onDeploySuccess={() => {
-                    refreshNetworkTokens();
-                  }}
+                  onSubmitDeployment={deployToken}
                   config={config}
                 />
               </div>
@@ -299,9 +298,8 @@ const Dashboard: React.FC<DashboardProps> = ({
               <div>
                 <TokenTable
                   provider={wallet.provider}
-                  onManageToken={handleTokenAction}
                   account={wallet.address}
-                  tokens={ownedTokens}
+                  tokens={ownedNetworkTokens}
                 />
               </div>
             </div>

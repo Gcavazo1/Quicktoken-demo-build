@@ -24,7 +24,7 @@ contract QuickToken is ERC20, ERC20Burnable, Ownable {
 
     // Platform fee configuration
     address public platformFeeAddress;
-    uint256 public platformFeePercentage = 2000; // 20% in basis points
+    uint256 public platformFeePercentage; // Percentage in basis points (e.g., 2000 = 20%)
     
     // Token status
     bool private _paused;
@@ -60,6 +60,7 @@ contract QuickToken is ERC20, ERC20Burnable, Ownable {
      * @param mintFee_ Fee charged when minting tokens (in basis points)
      * @param unlockTime_ Timestamp when transfers become available
      * @param platformFeeAddress_ Address that receives a portion of mint fees
+     * @param platformFeePercentage_ Percentage in basis points (e.g., 2000 = 20%)
      */
     constructor(
         string memory name_,
@@ -68,16 +69,19 @@ contract QuickToken is ERC20, ERC20Burnable, Ownable {
         uint256 maxSupply_,
         uint256 mintFee_,
         uint256 unlockTime_,
-        address platformFeeAddress_
+        address platformFeeAddress_,
+        uint256 platformFeePercentage_
     ) ERC20(name_, symbol_) Ownable(msg.sender) {
         require(maxSupply_ >= initialSupply, "Max supply must be >= initial supply");
         require(platformFeeAddress_ != address(0), "Platform fee address cannot be zero");
         require(unlockTime_ > block.timestamp, "Unlock time must be in the future");
+        require(platformFeePercentage_ <= 10000, "Platform fee cannot exceed 100%");
         
         maxSupply = maxSupply_;
         mintFee = mintFee_;
         unlockTime = unlockTime_;
         platformFeeAddress = platformFeeAddress_;
+        platformFeePercentage = platformFeePercentage_;
         _paused = false;
         
         if (initialSupply > 0) {
@@ -207,7 +211,7 @@ contract QuickToken is ERC20, ERC20Burnable, Ownable {
      * @dev Burns tokens from the caller
      * @param amount Amount of tokens to burn
      */
-    function burn(uint256 amount) public override onlyOwner {
+    function burn(uint256 amount) public override {
         _burn(_msgSender(), amount);
     }
 
@@ -216,7 +220,7 @@ contract QuickToken is ERC20, ERC20Burnable, Ownable {
      * @param account Address to burn from
      * @param amount Amount of tokens to burn
      */
-    function burnFrom(address account, uint256 amount) public override onlyOwner {
+    function burnFrom(address account, uint256 amount) public override {
         super.burnFrom(account, amount);
     }
 

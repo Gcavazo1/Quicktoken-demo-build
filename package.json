@@ -11,6 +11,7 @@
   "scripts": {
     "test": "hardhat test",
     "compile": "hardhat compile",
+    "build:contract": "hardhat compile && node scripts/generate-frontend-artifact.js",
     "node": "hardhat node",
     "deploy:local": "hardhat run scripts/deploy.js --network localhost",
     "deploy:hardhat": "hardhat run scripts/deploy.js --network hardhat",
@@ -45,7 +46,7 @@
     "chai": "^4.2.0",
     "dotenv": "^16.0.0",
     "ethers": "^6.13.5",
-    "hardhat": "^2.19.0",
+    "hardhat": "^2.23.0",
     "hardhat-gas-reporter": "^1.0.8",
     "solidity-coverage": "^0.8.0",
     "typescript": "^5.8.3"

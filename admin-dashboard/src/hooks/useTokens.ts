@@ -1,79 +1,37 @@
 import { useTokens as useTokensContext } from '../contexts/TokenContext';
 import { DeployedToken, TokenActionParams, TokenDeployParams, TokenAction } from '../lib/types/tokens';
-import { useWallet } from './useWallet';
 
 /**
  * Hook for token management
- * Provides a focused API for token operations with additional utilities
+ * Provides a focused API for token operations using the TokenContext.
+ * Filtering logic is now handled within the context itself.
  */
 export const useTokens = () => {
-  const {
-    tokens,
-    isLoading,
-    error,
-    selectedToken,
-    deployToken,
-    performTokenAction,
-    refreshTokenInfo,
-    selectToken
-  } = useTokensContext();
+  // Get all state and actions directly from the context
+  const context = useTokensContext(); 
 
-  // Get wallet information
-  const { address, chainId } = useWallet();
+  // Removed filtering functions (getOwnedTokens, getNetworkTokens, getOwnedNetworkTokens)
+  // Components should use the memoized lists provided by the context:
+  // context.ownedTokens, context.networkTokens, context.ownedNetworkTokens
 
-  /**
-   * Get tokens owned by the current wallet
-   */
-  const getOwnedTokens = (): DeployedToken[] => {
-    if (!address) return [];
-    
-    return tokens.filter(token => 
-      token.owner.toLowerCase() === address.toLowerCase()
-    );
+  // Simple wrapper for findToken (could also be used directly from context)
+  const findToken = (tokenAddress: string): DeployedToken | undefined => {
+    // Use the context's findToken function which searches across all networks by default
+    return context.findToken(tokenAddress);
   };
   
-  /**
-   * Get tokens deployed on the current network
-   */
-  const getNetworkTokens = (): DeployedToken[] => {
-    if (!chainId) return [];
-    
-    return tokens.filter(token => token.chainId === chainId);
-  };
-  
-  /**
-   * Get owned tokens on the current network
-   */
-  const getOwnedNetworkTokens = (): DeployedToken[] => {
-    if (!address || !chainId) return [];
-    
-    return tokens.filter(token => 
-      token.owner.toLowerCase() === address.toLowerCase() && 
-      token.chainId === chainId
-    );
-  };
-  
-  /**
-   * Find a token by address
-   */
-  const findToken = (tokenAddress: string): DeployedToken | null => {
-    return tokens.find(t => 
-      t.address.toLowerCase() === tokenAddress.toLowerCase()
-    ) || null;
-  };
-  
-  /**
-   * Mint tokens
-   */
+  // Wrapper for mintTokens action
   const mintTokens = async (
     tokenAddress: string, 
     amount: string, 
     recipient?: string
   ): Promise<boolean> => {
-    const token = findToken(tokenAddress);
-    if (!token) return false;
-    
-    return performTokenAction({
+    const token = context.findToken(tokenAddress); // Use context's findToken
+    if (!token) {
+        console.error(`Token not found for minting: ${tokenAddress}`);
+        return false;
+    }
+    return context.performTokenAction({
       token,
       action: 'mint',
       amount,
@@ -81,35 +39,35 @@ export const useTokens = () => {
     });
   };
   
-  /**
-   * Burn tokens
-   */
+  // Wrapper for burnTokens action
   const burnTokens = async (
     tokenAddress: string, 
     amount: string
   ): Promise<boolean> => {
-    const token = findToken(tokenAddress);
-    if (!token) return false;
-    
-    return performTokenAction({
+    const token = context.findToken(tokenAddress); // Use context's findToken
+    if (!token) {
+        console.error(`Token not found for burning: ${tokenAddress}`);
+        return false;
+    }
+    return context.performTokenAction({
       token,
       action: 'burn',
       amount
     });
   };
   
-  /**
-   * Transfer tokens
-   */
+  // Wrapper for transferTokens action
   const transferTokens = async (
     tokenAddress: string,
     amount: string,
     recipient: string
   ): Promise<boolean> => {
-    const token = findToken(tokenAddress);
-    if (!token) return false;
-    
-    return performTokenAction({
+    const token = context.findToken(tokenAddress); // Use context's findToken
+    if (!token) {
+        console.error(`Token not found for transfer: ${tokenAddress}`);
+        return false;
+    }
+    return context.performTokenAction({
       token,
       action: 'transfer',
       amount,
@@ -117,51 +75,43 @@ export const useTokens = () => {
     });
   };
   
-  /**
-   * Deploy a new token
-   */
+  // Wrapper for context's deployToken (submitDeployment)
   const deploy = async (params: TokenDeployParams): Promise<DeployedToken | null> => {
-    const tokenAddress = await deployToken(params);
-    if (tokenAddress && typeof tokenAddress === 'string') {
-      // Return the deployed token object
-      return findToken(tokenAddress);
-    }
-    return null;
+    // Directly call the context function
+    return context.deployToken(params);
   };
   
-  /**
-   * Refresh token information
-   */
+  // Wrapper for refreshTokenInfo
   const refreshToken = async (tokenAddress: string): Promise<void> => {
-    return refreshTokenInfo(tokenAddress);
+    return context.refreshTokenInfo(tokenAddress);
   };
   
-  /**
-   * Select a token for detailed view
-   */
+  // Wrapper for selectToken
   const select = (tokenAddress: string | null): void => {
-    selectToken(tokenAddress);
+    context.selectToken(tokenAddress);
   };
   
+  // Return the context values directly, plus any convenience wrappers if needed
   return {
-    // State
-    tokens,
-    ownedTokens: getOwnedTokens(),
-    networkTokens: getNetworkTokens(),
-    ownedNetworkTokens: getOwnedNetworkTokens(),
-    selectedToken,
-    isLoading,
-    error,
+    // State directly from context
+    tokens: context.tokens,
+    ownedTokens: context.ownedTokens, // Use context's memoized version
+    networkTokens: context.networkTokens, // Use context's memoized version
+    ownedNetworkTokens: context.ownedNetworkTokens, // Use context's memoized version
+    selectedToken: context.selectedToken,
+    isLoading: context.isLoading,
+    error: context.error,
     
-    // Token operations
-    deployToken: deploy,
-    mintTokens,
+    // Actions (mostly direct pass-through or simple wrappers)
+    deployToken: deploy, 
+    mintTokens, 
     burnTokens,
     transferTokens,
     refreshToken,
     selectToken: select,
     findToken,
-    performTokenAction
+    performTokenAction: context.performTokenAction, // Direct pass-through
+    refreshNetworkTokens: context.refreshNetworkTokens // Direct pass-through
   };
 };
 

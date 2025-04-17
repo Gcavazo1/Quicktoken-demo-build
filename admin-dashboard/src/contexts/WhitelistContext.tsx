@@ -62,7 +62,6 @@ interface WhitelistProviderProps {
  */
 export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }) => {
   const { address } = useWallet();
-  console.log(`[WhitelistProvider Render] Rendering. Initial address from useWallet: ${address}`); // Log initial address
   
   const [whitelist, setWhitelist] = useState<WhitelistEntry[]>([]);
   const [isWhitelisted, setIsWhitelisted] = useState(false);
@@ -73,26 +72,33 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
   // Load whitelist from STATIC CONFIG on component mount
   useEffect(() => {
     const initializeWhitelist = async () => {
+      console.log("[WhitelistContext] Starting whitelist initialization from static config...");
       setIsWhitelistLoading(true);
       try {
         const response = await fetch('/dashboard-config.json');
+        console.log(`[WhitelistContext] Fetch response status: ${response.status}`);
+        
         if (response.ok) {
           const fullConfig = await response.json();
+          console.log("[WhitelistContext] Config loaded:", JSON.stringify(fullConfig));
+          
           if (fullConfig && fullConfig.whitelist && Array.isArray(fullConfig.whitelist.entries)) {
+            console.log(`[WhitelistContext] Found whitelist entries: ${JSON.stringify(fullConfig.whitelist.entries)}`);
             setWhitelist(fullConfig.whitelist.entries);
-            console.log("WhitelistContext: Initialized from static dashboard-config.json");
+            console.log(`[WhitelistContext] Whitelist state set with ${fullConfig.whitelist.entries.length} entries`);
           } else {
-            console.warn("WhitelistContext: dashboard-config.json missing or has invalid whitelist structure. Initializing empty.");
+            console.warn("[WhitelistContext] dashboard-config.json missing or has invalid whitelist structure. Initializing empty.");
             setWhitelist([]);
           }
         } else {
-          console.error("WhitelistContext: Failed to fetch dashboard-config.json. Initializing empty.");
+          console.error(`[WhitelistContext] Failed to fetch dashboard-config.json. Status: ${response.status}`);
           setWhitelist([]); // Initialize empty if fetch fails
         }
       } catch (error) {
-         console.error("WhitelistContext: Error fetching or parsing dashboard-config.json:", error);
+         console.error("[WhitelistContext] Error fetching or parsing dashboard-config.json:", error);
          setWhitelist([]); // Initialize empty on error
       } finally {
+        console.log("[WhitelistContext] Whitelist initialization complete. isWhitelistLoading set to false");
         setIsWhitelistLoading(false);
       }
     };
@@ -100,49 +106,62 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
     initializeWhitelist();
   }, []); // Runs only once on mount
 
-  // Update permissions AFTER address is available AND whitelist is loaded
+  // Update permissions whenever the connected address changes AFTER whitelist is loaded
   useEffect(() => {
-    console.log(`[Whitelist Permission Check Effect] Running. Dependencies: address=${address}, isWhitelistLoading=${isWhitelistLoading}`);
-    
-    // Only proceed if whitelist is loaded AND we have a valid address
-    if (isWhitelistLoading || !address) {
-      console.log(`[Whitelist Permission Check Effect] Skipping: isWhitelistLoading=${isWhitelistLoading}, address=${address}`);
-      // If address becomes null/undefined after being set, reset permissions
-      if (!address) {
-          setIsWhitelisted(false);
-          setIsOwner(false);
-      }
+    // Only run if the whitelist is NOT loading
+    if (isWhitelistLoading) {
+      console.log("[WhitelistContext] Permission check skipped - whitelist still loading");
       return; 
     }
 
-    // Now we know whitelist is loaded AND address is valid
-    console.log(`--- [Whitelist Permission Check] START ---`);
-    const currentAddress = address.toLowerCase(); // Already checked address is not null
-    console.log(`Address: ${currentAddress}`);
-    console.log(`Checking against whitelist array (length ${whitelist.length}): ${JSON.stringify(whitelist)}`);
-    console.log(`---`);
+    console.log(`
+--- [WhitelistContext] PERMISSION CHECK START ---
+Address: ${address || 'null'}
+isWhitelistLoading: ${isWhitelistLoading}
+Whitelist entries count: ${whitelist.length}
+Whitelist data: ${JSON.stringify(whitelist)}
+---`);
 
-    const entry = whitelist.find(item => item.address.toLowerCase() === currentAddress);
+    const currentAddress = address ? address.toLowerCase() : null;
+    
+    if (!currentAddress) {
+      console.log("[WhitelistContext] No wallet address available, setting permissions false");
+      setIsWhitelisted(false);
+      setIsOwner(false);
+      return;
+    }
+
+    console.log(`[WhitelistContext] Checking address ${currentAddress} against whitelist with ${whitelist.length} entries`);
+    
+    const entry = whitelist.find(item => {
+      const match = item.address.toLowerCase() === currentAddress;
+      console.log(`[WhitelistContext] Comparing: ${item.address.toLowerCase()} vs ${currentAddress} = ${match}`);
+      return match;
+    });
     
     if (entry) {
+      console.log(`[WhitelistContext] Found whitelist entry: ${JSON.stringify(entry)}`);
       const ownerPermission = entry.permissions.includes('owner');
       const adminPermission = entry.permissions.includes('admin');
       const finalWhitelisted = ownerPermission || adminPermission;
-      console.log(`[Whitelist Permission Check] RESULT: Entry found for ${currentAddress}. 
-        Permissions: ${JSON.stringify(entry.permissions)}. 
-        Calculated isOwner: ${ownerPermission}, Calculated isWhitelisted: ${finalWhitelisted}`);
+      
+      console.log(`[WhitelistContext] Permission results:
+        Owner: ${ownerPermission}
+        Admin: ${adminPermission}
+        Final isWhitelisted: ${finalWhitelisted}`);
+      
       setIsOwner(ownerPermission);
       setIsWhitelisted(finalWhitelisted); 
     } else {
-      console.log(`[Whitelist Permission Check] RESULT: No entry found for ${currentAddress}, setting permissions false.`);
+      console.log(`[WhitelistContext] No matching entry found for ${currentAddress}, setting permissions false`);
       setIsWhitelisted(false);
       setIsOwner(false);
     }
-    console.log(`--- [Whitelist Permission Check] END ---`);
+    
+    console.log(`--- [WhitelistContext] PERMISSION CHECK COMPLETE ---`);
 
-  // Re-check whenever the address changes OR the loading state finishes.
-  // Keep whitelist in deps JIC it could change, though unlikely in this setup.
-  }, [address, isWhitelistLoading, whitelist]); 
+  // Trigger specifically when address changes, but only after isWhitelistLoading is false.
+  }, [address, isWhitelistLoading, whitelist]); // Keep whitelist as dep in case it ever changes
 
   // Get all owner addresses from the whitelist
   const getAllOwners = (): string[] => {

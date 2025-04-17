@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { useWallet } from '../hooks/useWallet';
 import { useNetwork } from '../contexts/NetworkContext';
-import { useTokens } from '../contexts/TokenContext'; // Changed to use the proper hook
+import { useTokens } from '../contexts/TokenContext';
 import { NetworkType } from '../contexts/NetworkContext';
 import { DeployedToken } from '../lib/types/tokens'; // Corrected path
 
@@ -27,12 +27,10 @@ interface FetchedTokenDetails {
 const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) => {
   const { address: walletAddress, provider } = useWallet();
   const { currentNetwork, configuredNetworks } = useNetwork();
-  const { importToken } = useTokens(); // Use useTokens hook and get importToken function
+  const { importToken } = useTokens();
 
   const [contractAddress, setContractAddress] = useState('');
-  const [selectedNetworkChainId, setSelectedNetworkChainId] = useState<string | undefined>(
-    currentNetwork?.chainId ? currentNetwork.chainId.toString() : undefined
-  );
+  const [selectedNetworkChainId, setSelectedNetworkChainId] = useState<string | undefined>(currentNetwork?.chainId?.toString());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchedDetails, setFetchedDetails] = useState<FetchedTokenDetails | null>(null);
@@ -63,7 +61,7 @@ const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) 
 
   const resetModalState = useCallback(() => {
     setContractAddress('');
-    setSelectedNetworkChainId(currentNetwork?.chainId ? currentNetwork.chainId.toString() : undefined);
+    setSelectedNetworkChainId(currentNetwork?.chainId?.toString());
     setIsLoading(false);
     setError(null);
     setFetchedDetails(null);
@@ -88,25 +86,24 @@ const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) 
         return;
     }
     
-    // Get RPC URL directly from the network config object
-    // const rpcUrl = selectedNetworkConfig.rpcUrl; 
-    // WE DON'T NEED THE RPC URL DIRECTLY - ethers.js uses the connected provider
-
     // Ensure provider is connected to the selected network
     const walletNetwork = await provider.getNetwork();
     if (walletNetwork.chainId.toString() !== selectedNetworkChainId) {
-        setError(`Please switch your wallet to the selected network (${selectedNetworkConfig.name || 'Unknown'}).`);
+        setError(`Please switch your wallet to the selected network (${selectedNetworkConfig.name || 'Unknown'}) to import the token.`);
+        setIsLoading(false); // Stop loading
         return;
     }
 
+    // Now we can safely use the existing provider from useWallet
+    const targetProvider = provider; 
 
     setIsLoading(true);
     setError(null);
     setFetchedDetails(null);
 
     try {
-      // ethers.js uses the provider which is already connected to the correct network (checked above)
-      const contract = new ethers.Contract(contractAddress, minimalErc20Abi, provider); 
+      // Corrected: Use the verified targetProvider (which is the wallet's provider)
+      const contract = new ethers.Contract(contractAddress, minimalErc20Abi, targetProvider);
       
       // Fetch details in parallel
       const results = await Promise.allSettled([
@@ -135,7 +132,8 @@ const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) 
 
     } catch (err: any) {
       console.error('Error fetching token details:', err);
-      const message = err.reason || err.message || "Failed to fetch token details. Check the address and network, and ensure it's a valid ERC20 contract.";
+      // Simplified error message extraction
+      const message = err.reason || err.message || 'Failed to fetch token details. Check the address and network.';
       setError(message);
       setFetchedDetails(null);
     } finally {
@@ -143,39 +141,36 @@ const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) 
     }
   };
 
-  const handleAddToken = () => {
-     if (!fetchedDetails || !contractAddress || !selectedNetworkChainId) {
-         setError('Cannot add token without fetched details.');
+  const handleAddToken = async () => {
+     if (!contractAddress || !selectedNetworkChainId) {
+         setError('Contract address and network are required.');
+         return;
+     }
+     if (!isAddressValid) {
+         setError('Invalid contract address format.');
          return;
      }
      
-     const tokenToAdd: DeployedToken = {
-        address: contractAddress,
-        name: fetchedDetails.name,
-        symbol: fetchedDetails.symbol,
-        decimals: fetchedDetails.decimals,
-        chainId: parseInt(selectedNetworkChainId, 10), // Ensure chainId is number
-        owner: walletAddress || 'imported', // Changed from deployerAddress to owner
-        deployedAt: Date.now(), // Timestamp of import
-        // Add missing required fields with default values
-        initialSupply: '0',
-        maxSupply: '0',
-        mintFeeBps: 0,
-        unlockTime: 0,
-        platformFeeAddress: '0x0000000000000000000000000000000000000000',
-        platformFeePercentage: 0,
-        totalSupply: '0',
-        paused: false
-     };
+     setIsLoading(true);
+     setError(null);
 
      try {
-        importToken(contractAddress); // Call the context function to import token
-        console.log('Token imported:', tokenToAdd);
-        // Maybe show a success notification here
-        handleClose(); // Close modal on success
-     } catch (err) {
+        // Call the context function to import/save
+        const success = await importToken(contractAddress); 
+        
+        if (success) {
+          console.log('Token import initiated for:', contractAddress);
+          // Maybe show a success notification here via context or prop
+          handleClose(); // Close modal on success
+        } else {
+          // Error might already be set within importToken, but set a generic one if not
+          setError(prev => prev || "Failed to import the token. It might already exist or there was a network issue.");
+        }
+     } catch (err: any) {
         console.error("Failed to import token via context:", err);
-        setError("Failed to save the token.");
+        setError(err.message || "An unexpected error occurred while importing the token.");
+     } finally {
+        setIsLoading(false);
      }
   };
 
@@ -206,7 +201,7 @@ const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) 
               className="w-full p-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-blue-500 focus:border-blue-500"
             >
               {configuredNetworks.map(network => (
-                <option key={network.chainId} value={network.chainId.toString()}>
+                <option key={network.chainId} value={network.chainId}>
                   {network.name} (ID: {network.chainId})
                 </option>
               ))}
@@ -227,38 +222,16 @@ const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) 
               disabled={isLoading}
               className={`w-full p-2 border ${isAddressValid ? 'border-gray-300 dark:border-gray-600' : 'border-red-500'} dark:bg-gray-700 dark:text-white rounded focus:ring-blue-500 focus:border-blue-500`}
             />
+            {!isAddressValid && contractAddress !== '' && (
+               <p className="text-xs text-red-600 dark:text-red-400 mt-1">Invalid Ethereum address format.</p>
+            )}
           </div>
 
-          {/* Fetch Button */}
-          {!fetchedDetails && (
-             <button
-              onClick={handleFetchDetails}
-              disabled={isLoading || !isAddressValid || !contractAddress || !selectedNetworkChainId || !provider}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-            >
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Fetching...
-                </>
-              ) : (
-                'Fetch Token Details'
-              )}
-            </button>
-          )}
+          {/* Fetch Button - Now becomes the Add/Import Button */}
+          {/* Conditionally render based on whether details have been fetched OR just directly allow adding */}
           
-          {/* Fetched Details Display */}
-          {fetchedDetails && !isLoading && (
-            <div className="p-3 border border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/30 rounded-md text-sm space-y-1">
-                <p><strong className="dark:text-gray-200">Name:</strong> <span className="dark:text-green-300">{fetchedDetails.name}</span></p>
-                <p><strong className="dark:text-gray-200">Symbol:</strong> <span className="dark:text-green-300">{fetchedDetails.symbol}</span></p>
-                <p><strong className="dark:text-gray-200">Decimals:</strong> <span className="dark:text-green-300">{fetchedDetails.decimals}</span></p>
-            </div>
-          )}
-
+          {/* Removed Fetch Details Button - Replaced by Add Token Button */}
+          
           {/* Error Display */}
           {error && (
             <div className="p-3 border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/30 rounded-md text-sm text-red-700 dark:text-red-300">
@@ -266,16 +239,28 @@ const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) 
             </div>
           )}
           
-          {/* Add Token Button */}
-          {fetchedDetails && !isLoading && (
-            <button
+          {/* Add Token Button - Always visible if address is valid */}
+          {/* Changed: This button now directly calls handleAddToken */}
+           <button
               onClick={handleAddToken}
-              className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+              disabled={isLoading || !isAddressValid || !contractAddress || !selectedNetworkChainId || !provider}
+              className="w-full mt-4 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
-              Add Token to Dashboard
+              {isLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Importing... 
+                </>
+              ) : (
+                'Import Token'
+              )}
             </button>
-          )}
 
+          {/* Fetched Details Display - Removed as importToken handles fetching */}
+          
         </div>
 
         {/* Footer */}

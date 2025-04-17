@@ -18,9 +18,9 @@ import { Loader2 } from 'lucide-react';
 import WalletSelectorModal from '../components/WalletSelectorModal';
 import { useWallet } from '../hooks/useWallet';
 import { useNetwork, NetworkType } from '../contexts/NetworkContext';
-import { loadTokensByNetwork } from '../lib/deployToken';
 import NetworkSwitch from '../components/NetworkSwitch';
 import ImportTokenModal from '../components/ImportTokenModal';
+import { loadTokensByNetwork } from '../lib/deployToken';
 
 // Add type definition for window.ethereum
 declare global {
@@ -34,16 +34,6 @@ interface DashboardProps {
   configSource?: 'local' | 'static' | 'none';
   onSwitchView?: () => void;
 }
-
-const Header: React.FC<{config: QuickTokenConfig}> = ({config}) => (
-  <header className="bg-secondary border-b border-border p-4">
-    <div className="max-w-7xl mx-auto flex justify-between items-center">
-      <h1 className="text-xl font-semibold text-primary">
-        {config.branding?.title || "QuickToken Dashboard"}
-      </h1>
-    </div>
-  </header>
-);
 
 const Dashboard: React.FC<DashboardProps> = ({ 
   config,
@@ -193,19 +183,21 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   useEffect(() => {
     const allTokensByNetwork = loadTokensByNetwork();
-    const currentChainId = currentNetwork?.chainId ? parseInt(currentNetwork.chainId.toString(), 10) : null;
-    if (currentChainId) {
+    const currentChainId = currentNetwork?.chainId;
+    
+    if (currentChainId !== undefined && currentChainId !== null) {
       setTokens(allTokensByNetwork[currentChainId] || []);
+      console.log(`[Dashboard] Tokens loaded for chainId: ${currentChainId}`);
     } else {
-      setTokens([]); // Clear tokens if no network is selected
+      setTokens([]);
+      console.log(`[Dashboard] No network selected, clearing tokens.`);
     }
-    console.log(`[Dashboard] Tokens loaded for chainId: ${currentChainId}`);
-  }, [currentNetwork]);
+  }, [currentNetwork, ownedTokens]);
 
   // --- RENDER ---
   return (
     <div className="min-h-screen flex flex-col bg-primary text-primary">
-      <Header config={config} />
+      {/* <Header config={config} /> */}
       
       <main className="max-w-7xl mx-auto px-6 py-8 flex-1">
         {wallet.isConnected ? (
@@ -250,28 +242,23 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
             
             <div className="bg-secondary rounded-lg overflow-hidden border border-border shadow-md">
-              <div className="px-6 py-5 border-b border-border">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h2 className="text-lg font-medium text-primary">
-                      Your Tokens
-                    </h2>
-                    <p className="mt-1 text-sm text-secondary">
-                      Manage your deployed ERC-20 tokens
-                    </p>
-                  </div>
-                  <div>
-                    <button
-                      onClick={() => setIsImportModalOpen(true)}
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md flex items-center"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      Import Token
-                    </button>
-                  </div>
+              <div className="px-6 py-5 border-b border-border flex justify-between items-center">
+                <div>
+                  <h2 className="text-lg font-medium text-primary">
+                    Your Tokens
+                  </h2>
+                  <p className="mt-1 text-sm text-secondary">
+                    Manage your deployed ERC-20 tokens
+                  </p>
                 </div>
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsImportModalOpen(true)}
+                  disabled={!wallet.isConnected}
+                >
+                  Import Token
+                </Button>
               </div>
               <div>
                 <TokenTable

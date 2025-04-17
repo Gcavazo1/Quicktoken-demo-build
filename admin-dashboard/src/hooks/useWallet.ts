@@ -8,8 +8,6 @@ import { EIP6963ProviderInfo, EIP1193Provider } from '../services/WalletConnecto
 
 // localStorage key for persistence
 const LAST_WALLET_RDNS_KEY = 'quicktoken_last_wallet_rdns';
-// Maximum time to wait for auto-reconnection in milliseconds
-const AUTO_RECONNECT_TIMEOUT = 3000;
 
 // Add type definition for window.ethereum
 declare global {
@@ -26,7 +24,6 @@ interface WalletContextValue {
   isConnected: boolean;
   isConnecting: boolean;
   isInitializing: boolean;
-  connectionAttemptCompleted: boolean;
   isNetworkSwitching: boolean;
   error: string | null;
   walletInfo: EIP6963ProviderInfo | null;
@@ -52,8 +49,6 @@ export const useWallet = (): WalletContextValue => {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
-  // New state to track when connection attempts are complete
-  const [connectionAttemptCompleted, setConnectionAttemptCompleted] = useState<boolean>(false);
   const [isNetworkSwitching, setIsNetworkSwitching] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [walletInfo, setWalletInfo] = useState<EIP6963ProviderInfo | null>(null);
@@ -67,64 +62,22 @@ export const useWallet = (): WalletContextValue => {
   // Use a flag to prevent multiple auto-reconnect attempts
   const attemptedAutoReconnectRef = useRef<boolean>(false);
   
-  // Timer for reconnection attempt
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
   // Check connection state on initial render
   useEffect(() => {
     isMountedRef.current = true;
+    console.log("[useWallet Mount] Hook mounted.");
     
     const initializeConnection = async () => {
+      console.log("[useWallet Mount] initializeConnection START");
       try {
-        // Check connection immediately
         await checkConnection();
-        
-        // Start a timeout for auto-reconnection attempt
-        // This ensures we give wallet enough time to initialize
-        if (!isConnected && !attemptedAutoReconnectRef.current) {
-          const savedRdns = localStorage.getItem(LAST_WALLET_RDNS_KEY);
-          
-          if (savedRdns) {
-            console.log(`[useWallet] Setting up auto-reconnect attempt to ${savedRdns} with ${AUTO_RECONNECT_TIMEOUT}ms window...`);
-            
-            // Set a timeout to attempt reconnection after a small delay
-            reconnectTimeoutRef.current = setTimeout(async () => {
-              if (!isConnected && isMountedRef.current && !attemptedAutoReconnectRef.current) {
-                console.log(`[useWallet] Executing auto-reconnect attempt to ${savedRdns}...`);
-                attemptedAutoReconnectRef.current = true;
-                
-                if (isMountedRef.current) {
-                  setIsConnecting(true);
-                }
-                
-                try {
-                  await connectWallet(savedRdns);
-                } catch (error) {
-                  console.error('[useWallet] Auto-reconnect attempt failed:', error);
-                } finally {
-                  if (isMountedRef.current) {
-                    setIsConnecting(false);
-                    // Mark connection attempt as complete regardless of outcome
-                    setConnectionAttemptCompleted(true);
-                  }
-                }
-              }
-            }, AUTO_RECONNECT_TIMEOUT);
-          } else {
-            // If no saved wallet, mark connection attempt as completed
-            if (isMountedRef.current) {
-              setConnectionAttemptCompleted(true);
-            }
-          }
-        }
       } catch (initError) {
-        console.error("[useWallet Mount] Initial checkConnection failed:", initError);
-        // Error state will be set within checkConnection
+         console.error("[useWallet Mount] Initial checkConnection failed during init:", initError);
       } finally {
-        // Signal that initialization is complete, regardless of success/failure
-        if (isMountedRef.current) {
-          setIsInitializing(false);
-        }
+         if (isMountedRef.current) {
+            console.log("[useWallet Mount] initializeConnection FINALLY - Setting isInitializing = false");
+            setIsInitializing(false);
+         }
       }
     };
 
@@ -138,16 +91,14 @@ export const useWallet = (): WalletContextValue => {
       // This handler is primarily for internal state cleanup triggered by WalletConnector
       // console.log('[useWallet] Received walletDisconnected event.');
       if (isMountedRef.current) { // Check if mounted
-        setProvider(null);
-        setAddress(null);
-        setChainId(null);
-        setWalletInfo(null);
-        setIsConnected(false);
-        setError(null);
-        // Clear persisted RDNS on disconnect event
-        localStorage.removeItem(LAST_WALLET_RDNS_KEY);
-        // Important: mark connection attempt as completed on disconnect
-        setConnectionAttemptCompleted(true);
+         setProvider(null);
+         setAddress(null);
+         setChainId(null);
+         setWalletInfo(null);
+         setIsConnected(false);
+         setError(null);
+         // Clear persisted RDNS on disconnect event
+         localStorage.removeItem(LAST_WALLET_RDNS_KEY);
       }
     };
     // Maybe add listeners for account/chain changes pushed from WalletConnector?
@@ -162,13 +113,6 @@ export const useWallet = (): WalletContextValue => {
         clearInterval(checkIntervalRef.current);
         checkIntervalRef.current = null;
       }
-      
-      // Clean up reconnection timeout
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
-      
       window.removeEventListener('walletDisconnected', handleWalletDisconnect);
     };
   }, []);
@@ -177,6 +121,7 @@ export const useWallet = (): WalletContextValue => {
   const checkConnection = async () => {
     if (!isMountedRef.current) return;
     const logPrefix = "[useWallet.checkConnection]";
+    console.log(`${logPrefix} Running check... (Current state: isConnected=${isConnected}, address=${address})`);
 
     try {
       // Check internal network switching state first
@@ -199,23 +144,22 @@ export const useWallet = (): WalletContextValue => {
         chainId: connectedChainId, 
         walletInfo: connectedWalletInfo
       } = await connector.getConnectionState();
+      console.log(`${logPrefix} connector.getConnectionState result: account=${connectedAccount}, chainId=${connectedChainId}`);
       
       const currentRdns = connectedWalletInfo?.rdns || null;
 
       if (isMountedRef.current) {
         if (connectedProvider && connectedAccount) {
+          console.log(`${logPrefix} Connection detected.`);
           // Update state only if it has changed
           if (provider !== connectedProvider) setProvider(connectedProvider);
           if (address !== connectedAccount) setAddress(connectedAccount);
           if (chainId !== connectedChainId) setChainId(connectedChainId);
           if (walletInfo?.rdns !== currentRdns) setWalletInfo(connectedWalletInfo || null);
-          if (!isConnected) {
-            setIsConnected(true);
-            // When we confirm a connection, mark the connection attempt as completed
-            setConnectionAttemptCompleted(true);
-          }
+          if (!isConnected) setIsConnected(true);
           if (error) setError(null); // Clear previous error on successful check
         } else {
+          console.log(`${logPrefix} No connection detected by connector.`);
           // If connector returns no connection, ensure local state is cleared
           if (provider !== null) setProvider(null);
           if (address !== null) setAddress(null);
@@ -223,12 +167,36 @@ export const useWallet = (): WalletContextValue => {
           if (walletInfo !== null) setWalletInfo(null);
           if (isConnected) setIsConnected(false);
           
-          // We no longer do auto-reconnect here - it's handled by the initialization process
-          // with a proper timeout
+          // --- Auto-reconnect logic ---
+          if (!attemptedAutoReconnectRef.current) {
+              attemptedAutoReconnectRef.current = true; 
+              const savedRdns = localStorage.getItem(LAST_WALLET_RDNS_KEY);
+              console.log(`${logPrefix} Auto-reconnect check: savedRdns=${savedRdns}`);
+              if (savedRdns) {
+                  console.log(`${logPrefix} Attempting auto-reconnect to ${savedRdns}...`);
+                  setIsConnecting(true); 
+                  let autoConnectSuccess = false;
+                  try {
+                      autoConnectSuccess = await connectWallet(savedRdns); // Pass RDNS directly
+                      console.log(`${logPrefix} Auto-reconnect connectWallet call finished. Success: ${autoConnectSuccess}`);
+                  } catch(e) {
+                      console.error(`${logPrefix} Auto-reconnect connectWallet threw error:`, e);
+                  } finally {
+                      if (isMountedRef.current) {
+                           setIsConnecting(false);
+                      }                  
+                  }
+              } else {
+                  console.log(`${logPrefix} No saved RDNS found, skipping auto-reconnect.`);
+              }
+          } else {
+             console.log(`${logPrefix} Auto-reconnect already attempted this session.`);
+          }
+          // --- End auto-reconnect logic ---
         }
       }
     } catch (error: any) {
-      console.error(`${logPrefix} Error checking connection state:`, error);
+      console.error(`${logPrefix} Error during check:`, error);
       if (isMountedRef.current) {
          setError(error.message || 'Failed to check wallet connection');
          // Clear state on error to be safe
@@ -237,8 +205,6 @@ export const useWallet = (): WalletContextValue => {
          setChainId(null);
          setWalletInfo(null);
          setIsConnected(false);
-         // Mark connection attempt as completed on error
-         setConnectionAttemptCompleted(true);
       }
     }
   };
@@ -333,9 +299,17 @@ export const useWallet = (): WalletContextValue => {
         throw new Error(result.error);
       }
       
-      // Save RDNS on successful connect
-      localStorage.setItem(LAST_WALLET_RDNS_KEY, rdns);
-      success = true;
+      // Update state based on connection result (handled by checkConnection now)
+      // if (isMountedRef.current) {
+      //   setProvider(result.provider);
+      //   setAddress(result.account);
+      //   setChainId(result.chainId);
+      //   setWalletInfo(result.walletInfo || null);
+      //   setIsConnected(true);
+          // Save RDNS on successful connect
+          localStorage.setItem(LAST_WALLET_RDNS_KEY, rdns);
+          success = true;
+      // }
       
     } catch (error: any) {
        console.error(`[useWallet] Error connecting to ${rdns}:`, error);
@@ -351,11 +325,9 @@ export const useWallet = (): WalletContextValue => {
        }
     } finally {
       if (isMountedRef.current) {
-        setIsConnecting(false);
-        // Important: mark connection attempt as completed
-        setConnectionAttemptCompleted(true);
-        // Trigger a state check immediately after attempting connection
-        await checkConnection(); 
+         setIsConnecting(false);
+         // Trigger a state check immediately after attempting connection
+         await checkConnection(); 
       }
     }
     return success;
@@ -377,8 +349,6 @@ export const useWallet = (): WalletContextValue => {
        console.error('[useWallet] Error disconnecting wallet:', error);
        if (isMountedRef.current) {
           setError(error.message || 'Failed to disconnect wallet');
-          // Ensure connection attempt is marked as completed even on error
-          setConnectionAttemptCompleted(true);
        }
     }
   }, [connector]); // Removed state vars
@@ -496,7 +466,6 @@ export const useWallet = (): WalletContextValue => {
     isConnected,
     isConnecting,
     isInitializing,
-    connectionAttemptCompleted,
     isNetworkSwitching,
     error,
     walletInfo,

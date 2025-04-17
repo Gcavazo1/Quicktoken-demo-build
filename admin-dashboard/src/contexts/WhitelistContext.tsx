@@ -74,7 +74,8 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
     const initializeWhitelist = async () => {
       console.log("[WhitelistContext] Initialize function START.");
       setIsWhitelistLoading(true);
-      let usedDataSource = 'unknown'; // Track where the final data came from
+      let usedDataSource = 'unknown';
+      let shouldSeedLocalStorage = false; // Flag to track if seeding is needed
       
       try {
         console.log(`[WhitelistContext] Attempting to read from localStorage key: ${WHITELIST_STORAGE_KEY}`);
@@ -86,27 +87,22 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
           try {
             const parsedConfig = JSON.parse(storedWhitelist);
             console.log("[WhitelistContext] Parsed localStorage data:", JSON.stringify(parsedConfig));
-            
-            // IMPORTANT: Check if the parsed data IS the whitelist config itself, or nested under a 'whitelist' key.
-            // Assuming the stored item IS the WhitelistConfig object directly based on previous findings.
             if (parsedConfig && Array.isArray(parsedConfig.entries)) {
               console.log(`[WhitelistContext] SUCCESS: Using valid localStorage whitelist with ${parsedConfig.entries.length} entries.`);
               setWhitelist(parsedConfig.entries);
               usedDataSource = 'localStorage (valid)';
             } else {
-              console.warn("[WhitelistContext] WARNING: Invalid format in localStorage (parsed, but wrong structure). Needs investigation. Falling back to static config attempt.");
-              // Proceed to fetch static config as fallback
+              console.warn("[WhitelistContext] WARNING: Invalid format in localStorage. Falling back to static config attempt.");
               usedDataSource = 'localStorage (invalid format)';
             }
           } catch (parseError) {
             console.error("[WhitelistContext] ERROR: Failed to parse localStorage whitelist:", parseError, ". Falling back to static config attempt.");
-            // Proceed to fetch static config as fallback
-             usedDataSource = 'localStorage (parse error)';
+            usedDataSource = 'localStorage (parse error)';
           }
         } else {
            console.log("[WhitelistContext] INFO: No whitelist found in localStorage. Will attempt to load from static config and seed localStorage.");
            usedDataSource = 'localStorage (empty)';
-           // Proceed to fetch static config
+           shouldSeedLocalStorage = true; // Set the flag here!
         }
 
         // If data wasn't successfully loaded from localStorage, attempt static load
@@ -119,27 +115,28 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
             const fullConfig = await response.json();
             console.log("[WhitelistContext] Static config loaded successfully:", JSON.stringify(fullConfig).substring(0, 200) + '...');
             
-            // Check if the static config has the expected structure
             if (fullConfig && fullConfig.whitelist && Array.isArray(fullConfig.whitelist.entries)) {
               const staticWhitelistConfig = fullConfig.whitelist;
               console.log(`[WhitelistContext] SUCCESS: Using static config whitelist with ${staticWhitelistConfig.entries.length} entries.`);
               setWhitelist(staticWhitelistConfig.entries);
-              usedDataSource = 'static config (valid)';
+              // Update usedDataSource *after* potential seeding
+              // usedDataSource = 'static config (valid)'; // Moved this down
               
-              // ** CRITICAL STEP: If localStorage was empty, seed it with this static data **
-              if (usedDataSource === 'localStorage (empty)') {
-                console.log("[WhitelistContext] Condition met: localStorage was empty. Attempting to seed..."); // Log: Seeding condition met
+              // ** Use the dedicated flag for the seeding check **
+              if (shouldSeedLocalStorage) {
+                console.log("[WhitelistContext] Condition met: shouldSeedLocalStorage is true. Attempting to seed...");
                 try {
                   const dataToSave = JSON.stringify(staticWhitelistConfig);
-                  console.log(`[WhitelistContext] Data prepared for seeding localStorage: ${dataToSave.substring(0, 150)}...`); // Log: Data to be saved
+                  console.log(`[WhitelistContext] Data prepared for seeding localStorage: ${dataToSave.substring(0, 150)}...`);
                   localStorage.setItem(WHITELIST_STORAGE_KEY, dataToSave);
-                  // Check if it was actually saved
                   const checkSavedData = localStorage.getItem(WHITELIST_STORAGE_KEY);
-                  console.log(`[WhitelistContext] INFO: Seeding attempt complete. Data in localStorage post-save: ${checkSavedData ? `'${checkSavedData.substring(0, 100)}...'` : 'null'}`); // Log: Post-save check
+                  console.log(`[WhitelistContext] INFO: Seeding attempt complete. Data in localStorage post-save: ${checkSavedData ? `'${checkSavedData.substring(0, 100)}...'` : 'null'}`);
                 } catch (saveError) {
                   console.error("[WhitelistContext] ERROR: Failed during attempt to save initial whitelist data to localStorage:", saveError);
                 }
-              }
+              } 
+              // Now update the data source string *after* seeding logic
+              usedDataSource = 'static config (valid)'; 
               
             } else {
               console.warn("[WhitelistContext] WARNING: Static dashboard-config.json missing or has invalid whitelist structure. Initializing empty whitelist.");
@@ -148,13 +145,13 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
             }
           } else {
             console.error(`[WhitelistContext] ERROR: Failed to fetch dashboard-config.json. Status: ${response.status}. Initializing empty whitelist.`);
-            setWhitelist([]); // Initialize empty if fetch fails
-             usedDataSource = 'static config (fetch error)';
+            setWhitelist([]);
+            usedDataSource = 'static config (fetch error)';
           }
         }
       } catch (error) {
          console.error("[WhitelistContext] CRITICAL ERROR during initialization:", error, ". Initializing empty whitelist.");
-         setWhitelist([]); // Initialize empty on error
+         setWhitelist([]);
          usedDataSource = 'critical error';
       } finally {
         setIsWhitelistLoading(false);
@@ -163,7 +160,7 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
     };
 
     initializeWhitelist();
-  }, []); // Runs only once on mount
+  }, []);
 
   // Update permissions whenever the connected address changes AFTER whitelist is loaded
   useEffect(() => {

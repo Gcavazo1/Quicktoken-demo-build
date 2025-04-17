@@ -16,13 +16,22 @@ const Home: NextPage = () => {
       try {
         const response = await fetch('/dashboard-config.json');
         if (response.ok) {
-          const loadedConfig: QuickTokenConfig = await response.json();
-          setConfig(loadedConfig);
-          setSetupComplete(true);
-          // Optionally save to localStorage for potential future optimizations
-          // or checks elsewhere in the app
-          localStorage.setItem('quicktoken_setup_complete', 'true');
-          localStorage.setItem('quicktoken_config', JSON.stringify(loadedConfig));
+          // Parse the full JSON response first
+          const fullConfig = await response.json();
+          
+          // Extract the 'core' part which matches QuickTokenConfig
+          const coreConfig = fullConfig.core;
+
+          if (coreConfig) { // Ensure core object exists
+            setConfig(coreConfig);
+            setSetupComplete(true);
+            // Optionally save the core config to localStorage
+            localStorage.setItem('quicktoken_setup_complete', 'true');
+            localStorage.setItem('quicktoken_config', JSON.stringify(coreConfig));
+          } else {
+             console.error('Fetched dashboard-config.json is missing the \'core\' object.');
+             setSetupComplete(false); // Fallback to wizard if structure is wrong
+          }
         } else {
           // Config file not found or fetch failed, proceed to check localStorage
           // or show SetupWizard if localStorage is also empty

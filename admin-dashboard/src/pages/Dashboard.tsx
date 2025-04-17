@@ -184,7 +184,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="flex justify-between items-center">
             <div className="flex items-center">
               <h1 className="text-xl font-semibold">
-                {config.core.branding.title}
+                {config.branding.title}
               </h1>
               <div className="flex ml-4 gap-2">
                 {isWhitelisted && (

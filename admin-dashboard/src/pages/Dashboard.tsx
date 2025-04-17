@@ -14,8 +14,9 @@ import { truncateAddress } from '../utils/format';
 import { useWhitelist } from '../contexts/WhitelistContext';
 import AdminBadge from '../components/AdminBadge';
 import { Button } from '../components/Button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, PlusCircle } from 'lucide-react';
 import WalletSelectorModal from '../components/WalletSelectorModal';
+import AddTokenModal from '../components/AddTokenModal';
 import { useWallet } from '../hooks/useWallet';
 import { useNetwork, NetworkType } from '../contexts/NetworkContext';
 
@@ -42,6 +43,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [showResetDialog, setShowResetDialog] = useState<boolean>(false);
   const [showWalletSelector, setShowWalletSelector] = useState<boolean>(false);
   const [availableProviders, setAvailableProviders] = useState<EIP6963ProviderDetail[]>([]);
+  const [isAddTokenModalOpen, setIsAddTokenModalOpen] = useState<boolean>(false);
 
   // --- OTHER HOOKS & INSTANCES ---
   const {
@@ -269,10 +271,19 @@ const Dashboard: React.FC<DashboardProps> = ({
                     Create and deploy a new QuickToken ERC-20 contract
                   </p>
                 </div>
-                <div className="text-sm text-secondary">
-                  <span className="bg-tertiary px-2 py-1 rounded text-blue-400 font-medium">
+                <div className="flex items-center gap-3">
+                  <span className="bg-tertiary px-2 py-1 rounded text-blue-400 font-medium text-sm">
                     {currentNetwork?.name || (wallet.chainId ? getNetworkName(wallet.chainId) : 'Not Connected')}
                   </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAddTokenModalOpen(true)}
+                    className="flex items-center"
+                  >
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    Add Existing Token
+                  </Button>
                 </div>
               </div>
               <div className="p-6">
@@ -345,6 +356,11 @@ const Dashboard: React.FC<DashboardProps> = ({
         providers={availableProviders}
         onConnect={(providerDetail) => wallet.connectWallet(providerDetail.info.rdns)}
         isLoading={wallet.isConnecting}
+      />
+
+      <AddTokenModal 
+        isOpen={isAddTokenModalOpen} 
+        onClose={() => setIsAddTokenModalOpen(false)} 
       />
     </div>
   );

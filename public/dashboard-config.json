@@ -179,9 +179,9 @@
       ]
     },
     "branding": {
-      "title": "VERCEL BETA LIVE TEST"
+      "title": "VERCEL BETA LIVE TEST 1.1"
     },
-    "theme": "light",
+    "theme": "dark",
     "security": {
       "whitelistEnabled": true,
       "lastWhitelistUpdate": 1744748341560
@@ -234,7 +234,7 @@
   },
   "meta": {
     "version": "1.0.0",
-    "exportedAt": 1744864544283,
-    "exportedBy": "0xc94d6e57d9b2d65f5ebeec12ee3cf653c4390862"
+    "exportedAt": 1744879825630,
+    "exportedBy": "0xae179f858ed23fa6a0246b1ed2f789f5d1b1b1b5"
   }
 }

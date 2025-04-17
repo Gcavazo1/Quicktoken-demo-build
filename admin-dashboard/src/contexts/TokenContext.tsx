@@ -6,6 +6,7 @@ import { deployToken as libDeployToken, loadTokensByNetwork, saveDeployedToken, 
 import { Provider } from '../lib/types/web3';
 import { useNetwork } from './NetworkContext';
 import { useWallet } from '../hooks/useWallet';
+import { fetchTokenDetailsFromChain } from '../utils/tokenUtils';
 
 /**
  * Token context value interface
@@ -34,7 +35,7 @@ interface TokenContextValue {
   getNetworkTokens: (specificChainId?: number) => DeployedToken[];
   getOwnedNetworkTokens: (specificChainId?: number) => DeployedToken[];
   findToken: (address: string, specificChainId?: number) => DeployedToken | undefined;
-  importToken: (address: string) => Promise<boolean>;
+  importToken: (address: string) => Promise<DeployedToken | null>;
 }
 
 // Default context value
@@ -57,7 +58,7 @@ const defaultTokenContext: TokenContextValue = {
   getNetworkTokens: () => [],
   getOwnedNetworkTokens: () => [],
   findToken: () => undefined,
-  importToken: async () => false
+  importToken: async () => null
 };
 
 // Create the context
@@ -86,7 +87,8 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
   // Get wallet state from useWallet hook
   const { provider, address: account, chainId, isConnected } = useWallet();
   
-  const { getNetworkByChainId } = useNetwork();
+  const networkContext = useNetwork();
+  const { getNetworkByChainId } = networkContext;
   
   // Filtered tokens for current account and network
   const ownedTokens = useMemo(() => (
@@ -575,106 +577,79 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
   };
   
   /**
-   * Import a token from a contract address
+   * Import a token from a contract address using fetchTokenDetailsFromChain
    * @param address Token contract address to import
+   * @returns Promise<DeployedToken | null> The imported token object or null on failure/duplicate.
    */
-  const importToken = async (address: string): Promise<boolean> => {
+  const importTokenImplementation = async (address: string): Promise<DeployedToken | null> => {
     if (!provider || !chainId) {
-      setError('Wallet not connected');
-      return false;
+      setError('Wallet not connected or network invalid');
+      return null;
     }
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      // Check if token already exists in this network
-      const existingToken = findToken(address, chainId);
+      // 1. Check if token already exists in the current network
+      // Use the useCallback version of findToken
+      const existingToken = findToken(address, chainId); 
       if (existingToken) {
-        setError('Token already imported');
-        return false;
+        console.log(`[TokenContext] Token ${address} already exists on network ${chainId}.`);
+        setError('Token already added to this network.');
+        return null; 
       }
-      
-      // Create contract instance
-      const contract = new ethers.Contract(address, QuickTokenABI, provider);
-      
-      // Check if this is a QuickToken
-      try {
-        // Try to call QuickToken-specific methods
-        await Promise.all([
-          contract.mintFeeBps(),
-          contract.unlockTime(),
-          contract.platformFeeAddress()
-        ]);
-      } catch (e) {
-        setError('Not a valid QuickToken contract');
-        return false;
-      }
-      
-      // Get token information
-      const [
-        name, 
-        symbol, 
-        totalSupplyWei,
-        maxSupplyWei,
-        decimals,
-        mintFeeBps,
-        unlockTime,
-        platformFeeAddress,
-        owner,
-        paused
-      ] = await Promise.all([
-        contract.name(),
-        contract.symbol(),
-        contract.totalSupply(),
-        contract.maxSupply(),
-        contract.decimals(),
-        contract.mintFeeBps(),
-        contract.unlockTime(),
-        contract.platformFeeAddress(),
-        contract.owner(),
-        contract.paused()
-      ]);
-      
-      // Create token record
-      const newToken: DeployedToken = {
+
+      // 2. Fetch token details from chain
+      console.log(`[TokenContext] Calling fetchTokenDetailsFromChain for ${address}...`);
+      const details = await fetchTokenDetailsFromChain(
         address,
-        name,
-        symbol,
-        initialSupply: ethers.formatEther(totalSupplyWei), // Assuming initial = current for imports
-        maxSupply: ethers.formatEther(maxSupplyWei),
-        decimals: Number(decimals),
-        mintFeeBps: Number(mintFeeBps),
-        unlockTime: Number(unlockTime),
-        platformFeeAddress,
-        platformFeePercentage: Number(mintFeeBps) / 100, // Convert bps to percentage
-        owner,
-        totalSupply: ethers.formatEther(totalSupplyWei),
-        paused,
-        deployedAt: Math.floor(Date.now() / 1000), // Use current time as import time
-        chainId
+        chainId,
+        provider,
+        networkContext 
+      );
+      console.log(`[TokenContext] Fetched details for ${address}:`, details);
+
+      // 3. Create a DeployedToken object with placeholders
+      const newToken: DeployedToken = {
+        address: address, 
+        chainId: chainId,
+        name: details.name,
+        symbol: details.symbol,
+        decimals: details.decimals,
+        owner: details.owner, 
+        totalSupply: details.totalSupply,
+        initialSupply: details.totalSupply, 
+        maxSupply: details.totalSupply,     
+        mintFeeBps: 0,                
+        unlockTime: 0,                
+        platformFeeAddress: '0x0000000000000000000000000000000000000000', 
+        platformFeePercentage: 0,     
+        paused: false,                
+        deployedAt: Math.floor(Date.now() / 1000), 
       };
-      
-      // Update tokens for this network
-      const networkTokens = [...(allNetworksTokens[chainId] || []), newToken];
-      
-      // Save updated tokens
-      saveTokens(networkTokens, chainId);
-      
-      // Show success notification
-      const network = getNetworkByChainId(chainId);
-      const networkName = network?.name || `Network ${chainId}`;
-      console.log(`Token ${symbol} imported from ${networkName}`);
-      
-      return true;
+      console.log(`[TokenContext] Created new token object:`, newToken);
+
+      // 4. Save the new token using the library function
+      console.log(`[TokenContext] Saving imported token ${newToken.symbol} to localStorage...`);
+      saveDeployedToken(newToken);
+
+      // 5. Reload tokens state from localStorage to include the new token
+      console.log(`[TokenContext] Reloading tokens state...`);
+      // Use the useCallback version of loadTokens
+      loadTokens(); 
+
+      console.log(`[TokenContext] Token ${newToken.symbol} imported successfully!`);
+      return newToken; 
+
     } catch (error: any) {
-      console.error('Token import failed:', error);
-      setError(error.message || 'Failed to import token');
-      return false;
+      console.error('[TokenContext] Token import failed:', error);
+      setError(error.message || 'Failed to import token.');
+      return null; 
     } finally {
       setIsLoading(false);
     }
-  };
+  }; // End of importTokenImplementation
   
   /**
    * Save tokens to localStorage, organized by network
@@ -720,13 +695,15 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
   const submitDeploymentCallback = useCallback(submitDeployment, [isConnected, provider, account, chainId, loadTokens]);
   const performTokenActionCallback = useCallback(performTokenAction, [provider, account, chainId, getNetworkByChainId, refreshTokenInfo]);
   const refreshTokenInfoCallback = useCallback(refreshTokenInfo, [provider, chainId, allNetworksTokens, selectedToken, saveTokens]);
-  const refreshAllTokensCallback = useCallback(refreshAllTokens, [provider, chainId, refreshNetworkTokens]);
+  const refreshNetworkTokensCallback = useCallback(refreshNetworkTokens, [loadTokens]); // Added dependency
+  const refreshAllTokensCallback = useCallback(refreshAllTokens, [provider, chainId, refreshNetworkTokensCallback]); // Use callback dependency
   const selectTokenCallback = useCallback(selectToken, [allNetworksTokens]);
   const getOwnedTokensCallback = useCallback(getOwnedTokens, [account, allNetworksTokens]);
   const getNetworkTokensCallback = useCallback(getNetworkTokens, [chainId, allNetworksTokens]);
   const getOwnedNetworkTokensCallback = useCallback(getOwnedNetworkTokens, [account, chainId, allNetworksTokens]);
-  const findTokenCallback = useCallback(findToken, [allNetworksTokens]);
-  const importTokenCallback = useCallback(importToken, [provider, chainId, allNetworksTokens, findToken, saveTokens]);
+  const findTokenCallback = findToken; // Already wrapped in useCallback above
+  // Use the new implementation function in the callback
+  const importTokenCallback = useCallback(importTokenImplementation, [provider, chainId, findToken, networkContext, saveDeployedToken, loadTokens]);
 
   // Compile context value - use useMemo
   const contextValue = useMemo((): TokenContextValue => ({
@@ -741,14 +718,14 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
     deployToken: submitDeploymentCallback,
     performTokenAction: performTokenActionCallback,
     refreshTokenInfo: refreshTokenInfoCallback,
-    refreshNetworkTokens,
+    refreshNetworkTokens: refreshNetworkTokensCallback,
     refreshAllTokens: refreshAllTokensCallback,
     selectToken: selectTokenCallback,
     getOwnedTokens: getOwnedTokensCallback,
     getNetworkTokens: getNetworkTokensCallback,
     getOwnedNetworkTokens: getOwnedNetworkTokensCallback,
     findToken: findTokenCallback,
-    importToken: importTokenCallback
+    importToken: importTokenCallback // Ensure the correct callback is passed
   }), [
     tokens,
     ownedTokens,
@@ -761,14 +738,14 @@ export const TokenProvider: React.FC<TokenProviderProps> = ({ children }) => {
     submitDeploymentCallback,
     performTokenActionCallback,
     refreshTokenInfoCallback,
-    refreshNetworkTokens,
+    refreshNetworkTokensCallback,
     refreshAllTokensCallback,
     selectTokenCallback,
     getOwnedTokensCallback,
     getNetworkTokensCallback,
     getOwnedNetworkTokensCallback,
     findTokenCallback,
-    importTokenCallback
+    importTokenCallback // Add the new callback as dependency
   ]);
 
   return (

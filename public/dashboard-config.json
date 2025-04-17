@@ -1,11 +1,8 @@
 {
   "core": {
     "platformFeeAddress": "0xc94d6e57D9b2D65f5eBEEc12ee3Cf653C4390862",
-    "platformFeePercentage": 30,
-    "theme": "dark",
-    "branding": {
-      "title": "Setup wizard test000"
-    },
+    "platformFeePercentage": 22,
+    "infuraId": "",
     "wallets": {
       "metamask": true,
       "coinbase": true
@@ -181,6 +178,10 @@
         }
       ]
     },
+    "branding": {
+      "title": "VERCEL BETA LIVE TEST"
+    },
+    "theme": "light",
     "security": {
       "whitelistEnabled": true,
       "lastWhitelistUpdate": 1744748341560
@@ -233,7 +234,7 @@
   },
   "meta": {
     "version": "1.0.0",
-    "exportedAt": 1744748343930,
-    "exportedBy": ""
+    "exportedAt": 1744864544283,
+    "exportedBy": "0xc94d6e57d9b2d65f5ebeec12ee3cf653c4390862"
   }
 }

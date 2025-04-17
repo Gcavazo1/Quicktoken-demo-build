@@ -187,7 +187,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 {config.branding.title}
               </h1>
               <div className="flex ml-4 gap-2">
-                {isWhitelisted && (
+                {isOwner && (
                   <button
                     onClick={handleShowResetDialog}
                     className="flex items-center text-sm text-secondary bg-tertiary px-3 py-1 rounded-md border border-border hover:bg-hover transition-colors"

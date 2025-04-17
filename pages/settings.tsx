@@ -444,7 +444,8 @@ const SettingsPage: React.FC = () => { // Removed props
   const [isWhitelistModalOpen, setIsWhitelistModalOpen] = useState(false);
   const { theme, setTheme } = useTheme(); // Moved theme context hook here
   const router = useRouter(); // Initialize router
-  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null); // State to track authorization check
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+  const [initialCheckComplete, setInitialCheckComplete] = useState(false); // New flag
   // Get wallet state, including connection status flags
   const { 
     address: walletAddress, 
@@ -525,49 +526,48 @@ const SettingsPage: React.FC = () => { // Removed props
     loadConfig();
   }, []); // Empty dependency array ensures this runs only once on mount
 
-  // Step 6: Implement Access Control Check (Revised - Use Context Flags + Wallet Initialization)
+  // Step 6: Implement Access Control Check (Revised Logic)
   useEffect(() => {
-    // Log current state values every time this effect runs
-    console.log(`[Settings Access Check] Running Effect - States: 
-      isInitializing: ${isInitializing}, 
-      isLoading: ${isLoading}, 
-      isWhitelistLoading: ${isWhitelistLoading}, 
-      isConnected: ${isConnected}, 
-      walletAddress: ${walletAddress}, 
-      isWhitelisted: ${isWhitelisted}`);
+    // Log states on each run for debugging
+    console.log(`[Settings Access Check] Effect Run - States: isInitializing=${isInitializing}, isLoading=${isLoading}, isWhitelistLoading=${isWhitelistLoading}, isConnected=${isConnected}, walletAddress=${walletAddress}, isWhitelisted=${isWhitelisted}, initialCheckComplete=${initialCheckComplete}`);
 
-    // 1. Wait until wallet is initialized AND context loading hooks are finished.
+    // Phase 1: Wait for all loading states to complete
     if (isInitializing || isLoading || isWhitelistLoading) {
-      console.log(`[Settings Access Check] Waiting...`);
-      setIsAuthorized(null); // Still resolving state
+      console.log("[Settings Access Check] Waiting for loading states...");
+      setInitialCheckComplete(false); // Reset if loading state changes back
+      setIsAuthorized(null); // Indicate resolution is pending
       return;
     }
 
-    // 2. Initialization and loading are done. Now check connection & authorization.
-    //    Use flags directly from hooks.
-    console.log(`[Settings Access Check] Finished waiting. Checking connection and authorization...`);
-    if (isConnected && walletAddress) {
-      // Wallet connected, check authorization flag from WhitelistContext.
-      const authorized = isWhitelisted; 
+    // Phase 2: All loading is complete. Perform the check ONCE.
+    if (!initialCheckComplete) {
+      console.log("[Settings Access Check] Loading complete. Performing final authorization check.");
+      setInitialCheckComplete(true); // Mark that the check is being performed
 
-      setIsAuthorized(authorized);
-
-      if (!authorized) {
-        console.log(`[Settings Access Check] Decision: Wallet connected but NOT authorized (isWhitelisted: ${isWhitelisted}). Redirecting.`);
-        router.push('/');
+      if (isConnected && walletAddress) {
+        // Wallet connected, use the current isWhitelisted value
+        if (isWhitelisted) {
+          console.log(`[Settings Access Check] Decision: Authorized (isConnected: true, isWhitelisted: true). Allowing access.`);
+          setIsAuthorized(true);
+        } else {
+          console.log(`[Settings Access Check] Decision: Not Authorized (isConnected: true, isWhitelisted: false). Redirecting.`);
+          setIsAuthorized(false);
+          router.push('/');
+        }
       } else {
-        console.log(`[Settings Access Check] Decision: Wallet connected and authorized (isWhitelisted: ${isWhitelisted}). Allowing access.`);
-        // Stay on page
+        // Wallet not connected after loading finished
+        console.log(`[Settings Access Check] Decision: Not Connected (isConnected: false). Redirecting.`);
+        setIsAuthorized(false);
+        router.push('/');
       }
     } else {
-      // Wallet is definitively disconnected after initialization.
-      console.log(`[Settings Access Check] Decision: Wallet disconnected (isConnected: ${isConnected}, walletAddress: ${walletAddress}). Redirecting.`);
-      setIsAuthorized(false);
-      router.push('/');
+      // Log subsequent runs after the initial check (e.g., due to isWhitelisted changing later, which shouldn't affect the decision)
+      console.log("[Settings Access Check] Post-check Effect Run (no action taken). states logged above.");
     }
 
-  // Dependencies now include the wallet initialization flag.
-  }, [isInitializing, isLoading, isWhitelistLoading, isConnected, walletAddress, isWhitelisted, router]);
+  // Dependencies: Include all states that determine readiness for the check.
+  // Crucially, we don't need isWhitelisted itself to trigger the *decision* logic again after the initial check.
+  }, [isInitializing, isLoading, isWhitelistLoading, isConnected, walletAddress, router, initialCheckComplete, isWhitelisted]); // Added isWhitelisted back just for logging consistency, decision logic gated by initialCheckComplete
 
   // Apply branding changes to CSS variables in real-time for preview
   useEffect(() => {

@@ -102,24 +102,34 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
   // Update permissions whenever the connected address or the whitelist data changes
   useEffect(() => {
     const checkPermissions = () => {
-      if (isWhitelistLoading) return; // Don't check while loading
+      console.log(`[Whitelist Check] Running checkPermissions. isWhitelistLoading: ${isWhitelistLoading}`);
+      if (isWhitelistLoading) {
+        console.log(`[Whitelist Check] Still loading whitelist, returning.`);
+        return; // Don't check while loading
+      }
 
       const currentAddress = address ? address.toLowerCase() : null;
+      console.log(`[Whitelist Check] currentAddress: ${currentAddress}`);
+      console.log(`[Whitelist Check] Current whitelist state (length ${whitelist.length}):`, JSON.stringify(whitelist)); // Log the actual whitelist array
+
       if (!currentAddress) {
+        console.log(`[Whitelist Check] No currentAddress, setting permissions to false.`);
         setIsWhitelisted(false);
         setIsOwner(false);
         return;
       }
 
       const entry = whitelist.find(item => item.address.toLowerCase() === currentAddress);
+      console.log(`[Whitelist Check] Found entry for ${currentAddress}:`, entry ? JSON.stringify(entry) : 'null');
       
       if (entry) {
         const ownerPermission = entry.permissions.includes('owner');
         const adminPermission = entry.permissions.includes('admin');
+        console.log(`[Whitelist Check] Entry found. ownerPermission: ${ownerPermission}, adminPermission: ${adminPermission}`);
         setIsOwner(ownerPermission);
-        // Consider anyone with owner OR admin permission as generally "whitelisted" for UI purposes
         setIsWhitelisted(ownerPermission || adminPermission); 
       } else {
+        console.log(`[Whitelist Check] No entry found for address, setting permissions to false.`);
         setIsWhitelisted(false);
         setIsOwner(false);
       }

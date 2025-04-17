@@ -72,59 +72,63 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
   // Load whitelist from STATIC CONFIG on component mount
   useEffect(() => {
     const initializeWhitelist = async () => {
-      console.log("[WhitelistContext] Starting whitelist initialization...");
+      console.log("[WhitelistContext] Initialize function START."); // START Log
       setIsWhitelistLoading(true);
       
       try {
         // First try to load from localStorage
+        console.log(`[WhitelistContext] Attempting to read from localStorage key: ${WHITELIST_STORAGE_KEY}`); // Log key
         const storedWhitelist = localStorage.getItem(WHITELIST_STORAGE_KEY);
+        console.log(`[WhitelistContext] Raw data from localStorage: ${storedWhitelist ? `'${storedWhitelist.substring(0, 100)}...'` : 'null'}`); // Log raw data (truncated)
         
         if (storedWhitelist) {
+          console.log("[WhitelistContext] Found data in localStorage. Attempting to parse...");
           try {
             const parsedConfig = JSON.parse(storedWhitelist);
-            console.log("[WhitelistContext] Found whitelist in localStorage:", JSON.stringify(parsedConfig));
+            console.log("[WhitelistContext] Parsed localStorage data:", JSON.stringify(parsedConfig)); // Log parsed data
             
             if (parsedConfig && Array.isArray(parsedConfig.entries)) {
-              console.log(`[WhitelistContext] Using localStorage whitelist with ${parsedConfig.entries.length} entries`);
+              console.log(`[WhitelistContext] SUCCESS: Using localStorage whitelist with ${parsedConfig.entries.length} entries.`);
               setWhitelist(parsedConfig.entries);
               setIsWhitelistLoading(false);
+              console.log("[WhitelistContext] Initialization complete using localStorage."); // End Log (LS Success)
               return; // Exit early if localStorage data was valid
             } else {
-              console.warn("[WhitelistContext] Invalid whitelist format in localStorage, falling back to static config");
+              console.warn("[WhitelistContext] WARNING: Invalid whitelist format in localStorage (parsed, but no 'entries' array). Falling back to static config.");
             }
           } catch (parseError) {
-            console.error("[WhitelistContext] Failed to parse localStorage whitelist:", parseError);
+            console.error("[WhitelistContext] ERROR: Failed to parse localStorage whitelist:", parseError, ". Falling back to static config.");
           }
         } else {
-          console.log("[WhitelistContext] No whitelist found in localStorage, falling back to static config");
+          console.log("[WhitelistContext] INFO: No whitelist found in localStorage. Falling back to static config.");
         }
         
         // Fall back to static config if localStorage failed or was invalid
+        console.log("[WhitelistContext] Attempting to fetch static config from '/dashboard-config.json'...");
         const response = await fetch('/dashboard-config.json');
-        console.log(`[WhitelistContext] Fetch response status: ${response.status}`);
+        console.log(`[WhitelistContext] Static config fetch response status: ${response.status}`);
         
         if (response.ok) {
           const fullConfig = await response.json();
-          console.log("[WhitelistContext] Config loaded:", JSON.stringify(fullConfig));
+          console.log("[WhitelistContext] Static config loaded successfully:", JSON.stringify(fullConfig).substring(0, 200) + '...'); // Log fetched data (truncated)
           
           if (fullConfig && fullConfig.whitelist && Array.isArray(fullConfig.whitelist.entries)) {
-            console.log(`[WhitelistContext] Found whitelist entries: ${JSON.stringify(fullConfig.whitelist.entries)}`);
+            console.log(`[WhitelistContext] SUCCESS: Using static config whitelist with ${fullConfig.whitelist.entries.length} entries.`);
             setWhitelist(fullConfig.whitelist.entries);
-            console.log(`[WhitelistContext] Whitelist state set with ${fullConfig.whitelist.entries.length} entries`);
           } else {
-            console.warn("[WhitelistContext] dashboard-config.json missing or has invalid whitelist structure. Initializing empty.");
+            console.warn("[WhitelistContext] WARNING: Static dashboard-config.json missing or has invalid whitelist structure. Initializing empty whitelist.");
             setWhitelist([]);
           }
         } else {
-          console.error(`[WhitelistContext] Failed to fetch dashboard-config.json. Status: ${response.status}`);
+          console.error(`[WhitelistContext] ERROR: Failed to fetch dashboard-config.json. Status: ${response.status}. Initializing empty whitelist.`);
           setWhitelist([]); // Initialize empty if fetch fails
         }
-      } catch (error) {
-         console.error("[WhitelistContext] Error fetching or parsing dashboard-config.json:", error);
+      } catch (fetchError) { // Changed variable name for clarity
+         console.error("[WhitelistContext] CRITICAL ERROR during initialization (fetch or other):", fetchError, ". Initializing empty whitelist.");
          setWhitelist([]); // Initialize empty on error
       } finally {
-        console.log("[WhitelistContext] Whitelist initialization complete. isWhitelistLoading set to false");
         setIsWhitelistLoading(false);
+        console.log("[WhitelistContext] Initialization FINALLY block reached. isWhitelistLoading set to false."); // End Log (Finally)
       }
     };
 

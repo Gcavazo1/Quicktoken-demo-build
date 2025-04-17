@@ -69,48 +69,65 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
   const [isInSetupMode, setIsInSetupMode] = useState(false);
   const [isWhitelistLoading, setIsWhitelistLoading] = useState(true); // Add loading state, default true
   
-  // Load whitelist from local storage
-  const loadWhitelist = (): WhitelistConfig | null => {
-    try {
-      const storedConfig = localStorage.getItem(WHITELIST_STORAGE_KEY);
-      if (storedConfig && storedConfig !== "undefined" && storedConfig !== "null") {
-        return JSON.parse(storedConfig);
+  // Load whitelist from STATIC CONFIG on component mount
+  useEffect(() => {
+    const initializeWhitelist = async () => {
+      setIsWhitelistLoading(true);
+      try {
+        const response = await fetch('/dashboard-config.json');
+        if (response.ok) {
+          const fullConfig = await response.json();
+          if (fullConfig && fullConfig.whitelist && Array.isArray(fullConfig.whitelist.entries)) {
+            setWhitelist(fullConfig.whitelist.entries);
+            console.log("WhitelistContext: Initialized from static dashboard-config.json");
+          } else {
+            console.warn("WhitelistContext: dashboard-config.json missing or has invalid whitelist structure. Initializing empty.");
+            setWhitelist([]);
+          }
+        } else {
+          console.error("WhitelistContext: Failed to fetch dashboard-config.json. Initializing empty.");
+          setWhitelist([]); // Initialize empty if fetch fails
+        }
+      } catch (error) {
+         console.error("WhitelistContext: Error fetching or parsing dashboard-config.json:", error);
+         setWhitelist([]); // Initialize empty on error
+      } finally {
+        setIsWhitelistLoading(false);
       }
-    } catch (error) {
-      console.error('Failed to load whitelist config:', error);
-    }
-    return null;
-  };
-  
-  // Save whitelist to local storage
-  const saveWhitelist = (config: WhitelistConfig) => {
-    try {
-      // Ensure we have valid data
-      if (!config || !config.entries) {
-        console.error('Invalid whitelist config:', config);
+    };
+
+    initializeWhitelist();
+  }, []); // Runs only once on mount
+
+  // Update permissions whenever the connected address or the whitelist data changes
+  useEffect(() => {
+    const checkPermissions = () => {
+      if (isWhitelistLoading) return; // Don't check while loading
+
+      const currentAddress = address ? address.toLowerCase() : null;
+      if (!currentAddress) {
+        setIsWhitelisted(false);
+        setIsOwner(false);
         return;
       }
 
-      // Ensure entries is an array
-      if (!Array.isArray(config.entries)) {
-        config.entries = [];
-      }
-
-      // Make sure ownerAddress exists
-      if (!config.ownerAddress) {
-        const firstOwner = config.entries.find(entry => entry.permissions.includes('owner'));
-        config.ownerAddress = firstOwner ? firstOwner.address : '';
-      }
-
-      localStorage.setItem(WHITELIST_STORAGE_KEY, JSON.stringify(config));
+      const entry = whitelist.find(item => item.address.toLowerCase() === currentAddress);
       
-      // Update state
-      setWhitelist(config.entries);
-    } catch (error) {
-      console.error('Failed to save whitelist config:', error);
-    }
-  };
-  
+      if (entry) {
+        const ownerPermission = entry.permissions.includes('owner');
+        const adminPermission = entry.permissions.includes('admin');
+        setIsOwner(ownerPermission);
+        // Consider anyone with owner OR admin permission as generally "whitelisted" for UI purposes
+        setIsWhitelisted(ownerPermission || adminPermission); 
+      } else {
+        setIsWhitelisted(false);
+        setIsOwner(false);
+      }
+    };
+
+    checkPermissions();
+  }, [address, whitelist, isWhitelistLoading]); // Re-run checks if address, whitelist, or loading state changes
+
   // Get all owner addresses from the whitelist
   const getAllOwners = (): string[] => {
     return whitelist
@@ -118,163 +135,37 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
       .map(entry => entry.address.toLowerCase());
   };
   
-  // Add an address to the whitelist
+  // Add an address to the whitelist (DEPRECATED - Use SettingsPage state modification)
   const addToWhitelist = (address: string, label: string, permissions: string[]) => {
-    const normalizedAddress = address.toLowerCase();
-    
-    // Check if the current wallet is an owner - only if not in setup mode
-    if (!isInSetupMode && address !== getCurrentWalletAddress() && !isOwner) {
-      console.error('Only owners can add to the whitelist');
-      return;
-    }
-    
-    // Check if address is already in the whitelist
-    if (whitelist.some(entry => entry.address.toLowerCase() === normalizedAddress)) {
-      console.error('Address is already in the whitelist');
-      return;
-    }
-    
-    const newEntry: WhitelistEntry = {
-      address: normalizedAddress,
-      label,
-      addedAt: Date.now(),
-      permissions
-    };
-    
-    const updatedWhitelist = [...whitelist, newEntry];
-    
-    // Update local storage
-    const config = loadWhitelist();
-    if (config) {
-      saveWhitelist({
-        ...config,
-        entries: updatedWhitelist,
-        lastModified: Date.now()
-      });
-    } else {
-      saveWhitelist({
-        entries: updatedWhitelist,
-        ownerAddress: getAllOwners()[0] || normalizedAddress, // First owner, or this address if it's an owner
-        lastModified: Date.now(),
-        whitelistEnabled: true
-      });
-    }
+     console.warn("addToWhitelist directly on context is deprecated. Modify config via SettingsPage.");
+     // Potential future implementation: Dispatch an event or update a central config store?
   };
   
-  // Remove an address from the whitelist
+  // Remove an address from the whitelist (DEPRECATED - Use SettingsPage state modification)
   const removeFromWhitelist = (addressToRemove: string): boolean => {
-    const normalizedAddress = addressToRemove.toLowerCase();
-    
-    // Check if trying to remove an owner
-    const isRemovingOwner = whitelist.some(
-      entry => entry.address.toLowerCase() === normalizedAddress && entry.permissions.includes('owner')
-    );
-    
-    // If removing an owner, make sure it's not the last one
-    if (isRemovingOwner) {
-      const ownerCount = whitelist.filter(entry => entry.permissions.includes('owner')).length;
-      
-      if (ownerCount <= 1 && !isInSetupMode) {
-        console.error('Cannot remove the last owner from the whitelist');
-        return false;
-      }
-    }
-    
-    // In normal mode (not setup), only owners can remove addresses
-    if (!isInSetupMode && !isOwner) {
-      console.error('Only owners can remove addresses from the whitelist');
-      return false;
-    }
-    
-    // Cannot remove current wallet if it's an owner (when not in setup mode)
-    if (!isInSetupMode && normalizedAddress === getCurrentWalletAddress() && isOwner) {
-      console.error('Cannot remove your own address while connected');
-      return false;
-    }
-    
-    const updatedWhitelist = whitelist.filter(
-      entry => entry.address.toLowerCase() !== normalizedAddress
-    );
-    
-    if (updatedWhitelist.length === whitelist.length) {
-      console.error('Address not found in whitelist');
-      return false;
-    }
-    
-    // Update local storage
-    const config = loadWhitelist();
-    if (config) {
-      // If removing the primary owner, update ownerAddress
-      let primaryOwner = config.ownerAddress;
-      if (normalizedAddress === primaryOwner.toLowerCase()) {
-        // Find the next owner to be primary
-        const nextOwner = updatedWhitelist.find(entry => entry.permissions.includes('owner'));
-        if (nextOwner) {
-          primaryOwner = nextOwner.address;
-        }
-      }
-      
-      saveWhitelist({
-        ...config,
-        entries: updatedWhitelist,
-        ownerAddress: primaryOwner,
-        lastModified: Date.now()
-      });
-    }
-    
-    return true;
+    console.warn("removeFromWhitelist directly on context is deprecated. Modify config via SettingsPage.");
+    return false; // Indicate failure as it doesn't modify state
   };
   
-  // Convenience method to add an owner
+  // Convenience method to add an owner (DEPRECATED)
   const addOwner = (address: string, label: string) => {
-    addToWhitelist(address, label, ['owner', 'admin']);
+    console.warn("addOwner directly on context is deprecated. Modify config via SettingsPage.");
   };
   
-  // Convenience method to remove an owner
+  // Convenience method to remove an owner (DEPRECATED)
   const removeOwner = (address: string): boolean => {
-    return removeFromWhitelist(address);
+    console.warn("removeOwner directly on context is deprecated. Modify config via SettingsPage.");
+    return false;
   };
+
+  // Save/Load functions are no longer needed here as config is managed externally
+  const legacyLoadWhitelist = (): null => null; // Placeholder
+  const legacySaveWhitelist = (config: WhitelistConfig) => {}; // Placeholder
   
-  // Helper to get current wallet address safely
+  // Helper to get current wallet address safely (still useful internally)
   const getCurrentWalletAddress = (): string => {
     return address ? address.toLowerCase() : '';
   };
-  
-  // Load whitelist on component mount
-  useEffect(() => {
-    try {
-      const config = loadWhitelist();
-      if (config && config.entries) {
-        setWhitelist(Array.isArray(config.entries) ? config.entries : []);
-      } else {
-        // Initialize with empty whitelist if none exists or if data is invalid
-        setWhitelist([]);
-      }
-    } catch (error) {
-      console.error('Error loading whitelist on mount:', error);
-      setWhitelist([]);
-    } finally {
-        setIsWhitelistLoading(false); // Set loading to false after attempting to load
-    }
-  }, []);
-  
-  // Added useEffect to check whitelist status based on connected address
-  useEffect(() => {
-    const config = loadWhitelist();
-    if (config && address) {
-      const normalizedAddress = address.toLowerCase();
-      const owners = config.entries
-        ?.filter(e => e.permissions.includes('owner'))
-        .map(e => e.address.toLowerCase()) || [];
-      const isAddrOwner = owners.includes(normalizedAddress);
-      setIsOwner(isAddrOwner);
-    } else {
-      setIsOwner(false);
-    }
-    // Check whitelist status in general (can be simplified)
-    const isAddrWhitelisted = config?.entries?.some(e => e.address.toLowerCase() === address?.toLowerCase()) || false;
-    setIsWhitelisted(config?.whitelistEnabled ? isAddrWhitelisted : true); // Whitelisted if enabled and in list, OR if disabled
-  }, [loadWhitelist, address, isInSetupMode]);
   
   // Context value
   const value: WhitelistContextType = {
@@ -286,8 +177,8 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
     removeFromWhitelist,
     addOwner,
     removeOwner,
-    saveWhitelist,
-    loadWhitelist,
+    saveWhitelist: legacySaveWhitelist,
+    loadWhitelist: legacyLoadWhitelist,
     isInSetupMode,
     setIsInSetupMode,
     isWhitelistLoading // Provide loading state in context value

@@ -526,42 +526,43 @@ const SettingsPage: React.FC = () => { // Removed props
 
   // Step 6: Implement Access Control Check (Revised)
   useEffect(() => {
-    // Don't run the check until config is loaded AND wallet is not actively connecting
+    // Don't run the check until config/whitelist is loading OR wallet is actively connecting
     if (isLoading || isConnecting || isWhitelistLoading) {
-      setIsAuthorized(null); 
+      setIsAuthorized(null); // Set to null during loading states
       return; 
     }
 
     // Wallet connection attempt finished (isConnecting is false)
     if (isConnected && walletAddress) {
-      // --- Perform direct authorization check using whitelist data ---
+      // Perform direct authorization check using whitelist data
       const normalizedAddress = walletAddress.toLowerCase();
       
-      // Check if owner
-      const checkIsOwner = whitelist.some(entry => 
+      // Check if the connected address is in the whitelist with either 'owner' or 'admin' permission
+      const authorized = whitelist.some(entry => 
         entry.address.toLowerCase() === normalizedAddress && 
-        entry.permissions.includes('owner')
+        (entry.permissions.includes('owner') || entry.permissions.includes('admin'))
       );
-      
-      // Check if whitelisted (general check, assuming whitelist is enabled - adjust if needed based on config.security.whitelistEnabled)
-      const checkIsWhitelisted = whitelist.some(entry => 
-         entry.address.toLowerCase() === normalizedAddress
-      );
-      
-      const authorized = checkIsOwner || checkIsWhitelisted;
       
       setIsAuthorized(authorized);
       
-      if (!authorized) {
-        router.push('/');
+      // If connected but NOT authorized, redirect to dashboard
+      if (!authorized) { 
+        console.log("Settings Access: Wallet connected but not authorized. Redirecting.");
+        router.push('/'); 
+      } else {
+        console.log("Settings Access: Wallet connected and authorized.");
+        // Stay on the page if authorized
       }
-      // --- End direct check ---
 
-    } else {
+    } else { 
+      // Wallet is disconnected OR address is missing after connection attempt
+      console.log("Settings Access: Wallet disconnected or address unavailable. Redirecting.");
       setIsAuthorized(false);
+      router.push('/'); // ADDED: Redirect if disconnected
     }
 
-  }, [isLoading, isConnecting, isConnected, walletAddress, isOwner, isWhitelisted, isWhitelistLoading, router]); // Keep `isOwner`, `isWhitelisted` deps even if not used directly in check, as context update could trigger re-render
+    // Explicitly list dependencies needed for the logic
+  }, [isLoading, isConnecting, isConnected, walletAddress, whitelist, router, isWhitelistLoading]);
 
   // Apply branding changes to CSS variables in real-time for preview
   useEffect(() => {

@@ -72,9 +72,34 @@ export const WhitelistProvider: React.FC<WhitelistProviderProps> = ({ children }
   // Load whitelist from STATIC CONFIG on component mount
   useEffect(() => {
     const initializeWhitelist = async () => {
-      console.log("[WhitelistContext] Starting whitelist initialization from static config...");
+      console.log("[WhitelistContext] Starting whitelist initialization...");
       setIsWhitelistLoading(true);
+      
       try {
+        // First try to load from localStorage
+        const storedWhitelist = localStorage.getItem(WHITELIST_STORAGE_KEY);
+        
+        if (storedWhitelist) {
+          try {
+            const parsedConfig = JSON.parse(storedWhitelist);
+            console.log("[WhitelistContext] Found whitelist in localStorage:", JSON.stringify(parsedConfig));
+            
+            if (parsedConfig && Array.isArray(parsedConfig.entries)) {
+              console.log(`[WhitelistContext] Using localStorage whitelist with ${parsedConfig.entries.length} entries`);
+              setWhitelist(parsedConfig.entries);
+              setIsWhitelistLoading(false);
+              return; // Exit early if localStorage data was valid
+            } else {
+              console.warn("[WhitelistContext] Invalid whitelist format in localStorage, falling back to static config");
+            }
+          } catch (parseError) {
+            console.error("[WhitelistContext] Failed to parse localStorage whitelist:", parseError);
+          }
+        } else {
+          console.log("[WhitelistContext] No whitelist found in localStorage, falling back to static config");
+        }
+        
+        // Fall back to static config if localStorage failed or was invalid
         const response = await fetch('/dashboard-config.json');
         console.log(`[WhitelistContext] Fetch response status: ${response.status}`);
         

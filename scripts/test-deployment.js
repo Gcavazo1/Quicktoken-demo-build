@@ -3,66 +3,70 @@ const { main } = require('./deploy');
 const hre = require("hardhat");
 const { ethers } = require("hardhat");
 
-async function testDeployment() {
-  console.log('Starting deployment test...');
-  console.log(`Network: ${hre.network.name}`);
-  
+async function main() {
+  // console.log('Starting deployment test...');
+  // console.log(`Network: ${hre.network.name}`);
+
   try {
-    // Get current ethers version 
-    console.log(`Ethers.js version: ${ethers.version || 'unknown'}`);
-    
-    // Verify we can get signers with ethers v6
+    // Test 1: Get Signer
     const [deployer] = await ethers.getSigners();
-    console.log('Test 1: Get signer - PASSED');
-    
-    // Verify we can get balance with ethers v6
+    if (!deployer) throw new Error("Failed to get signer");
+    // console.log(`Ethers.js version: ${ethers.version || 'unknown'}`); // Log Ethers version
+    // console.log('Test 1: Get signer - PASSED');
+
+    // Test 2: Get Balance
     const balance = await ethers.provider.getBalance(deployer.address);
-    console.log(`Test 2: Get balance (${ethers.formatEther(balance)} ETH) - PASSED`);
-    
-    // Verify we can get fee data with ethers v6
+    if (balance === undefined) throw new Error("Failed to get balance");
+    // console.log(`Test 2: Get balance (${ethers.formatEther(balance)} ETH) - PASSED`);
+
+    // Test 3: Get Fee Data
     const feeData = await ethers.provider.getFeeData();
-    console.log(`Test 3: Get fee data - PASSED (Gas Price: ${feeData.gasPrice ? ethers.formatUnits(feeData.gasPrice, 'gwei') + ' gwei' : 'N/A'})`);
-    
-    // Mock deployment data for testing
-    console.log('\nTesting local mock deployment...');
-    const mockDeploymentData = {
-      contractAddress: '0x0000000000000000000000000000000000000000',
-      tokenName: 'TestToken',
-      tokenSymbol: 'TST',
-      initialSupply: ethers.parseEther('1000000'),
-      maxSupply: ethers.parseEther('10000000'),
-      mintFeeBps: 200,
-      unlockTime: Math.floor(Date.now() / 1000) + 60 * 60 * 24, // 1 day from now
-      platformFeeAddress: deployer.address
+    if (!feeData) throw new Error("Failed to get fee data");
+    // console.log(`Test 3: Get fee data - PASSED (Gas Price: ${feeData.gasPrice ? ethers.formatUnits(feeData.gasPrice, 'gwei') + ' gwei' : 'N/A'})`);
+
+    // console.log('\nTesting local mock deployment...');
+    // Test 4: Mock Deployment Logic (assuming deploy.js can be required)
+    const mockDeploy = require('./deploy-mock'); // Adjust path if needed
+    const mockConfig = {
+        name: "Mock QuickToken",
+        symbol: "MQTK",
+        initialSupply: "1000000",
+        maxSupply: "10000000",
+        mintFeeBps: 50, // 0.5%
+        unlockTime: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
+        platformFeeAddress: deployer.address // Use deployer for mock
     };
-    
-    console.log('Mock deployment data created - PASSED');
-    
-    // Full deployment test
-    console.log('\nRunning full deployment test...');
-    const deploymentResult = await main();
-    
-    console.log('\nDeployment test completed:');
-    console.log(JSON.stringify(deploymentResult, null, 2));
-    
-    return { success: true, deploymentInfo: deploymentResult };
+    const mockDeploymentData = await mockDeploy(mockConfig, { save: false, verify: false }); // Don't save or verify
+    if (!mockDeploymentData || !mockDeploymentData.contractAddress) throw new Error("Mock deployment failed");
+    // console.log('Mock deployment data created - PASSED');
+
+    // console.log('\nRunning full deployment test...');
+    // Test 5: Full Deployment (import and run deploy.js main logic)
+    const deployScript = require('./deploy'); // Assuming deploy.js exports main or a deploy function
+    const deploymentResult = await deployScript.main({ // Pass mock config, specify no save/verify
+        configOverrides: mockConfig,
+        saveDeploymentInfo: false,
+        verifyContract: false
+    });
+    // console.log('\nDeployment test completed:');
+    // console.log(JSON.stringify(deploymentResult, null, 2));
+
+    console.log("\n✅ All deployment tests passed successfully!");
+
   } catch (error) {
-    console.error('Deployment test failed:');
-    console.error(error);
-    return { success: false, error: error.message };
+    console.error("\n❌ Deployment test failed:", error);
+    process.exit(1);
   }
 }
 
 // Run test if script is executed directly
 if (require.main === module) {
-  testDeployment()
-    .then(result => {
-      process.exit(result.success ? 0 : 1);
-    })
-    .catch(error => {
+  main()
+    .then(() => process.exit(0))
+    .catch((error) => {
       console.error(error);
       process.exit(1);
     });
 }
 
-module.exports = { testDeployment }; 
+module.exports = { main }; 

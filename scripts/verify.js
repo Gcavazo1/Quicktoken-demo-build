@@ -41,19 +41,19 @@ function readDeploymentData() {
 async function verifyContract(hre, deploymentData) {
   const { contractAddress, tokenName, tokenSymbol, initialSupply, maxSupply, mintFeeBps, unlockTime, platformFeeAddress } = deploymentData;
   
-  console.log("----------------------------------------------------");
-  console.log("🔍 Verifying QuickToken Contract");
-  console.log("----------------------------------------------------");
-  console.log(`Network:            ${network.name}`);
-  console.log(`Contract Address:   ${contractAddress}`);
-  console.log(`Token Name:         ${tokenName}`);
-  console.log(`Token Symbol:       ${tokenSymbol}`);
-  console.log(`Initial Supply:     ${initialSupply}`);
-  console.log(`Max Supply:         ${maxSupply}`);
-  console.log(`Mint Fee (BPS):     ${mintFeeBps}`);
-  console.log(`Unlock Time:        ${new Date(unlockTime * 1000).toISOString()}`);
-  console.log(`Platform Fee Addr:  ${platformFeeAddress}`);
-  console.log("----------------------------------------------------");
+  // console.log("----------------------------------------------------");
+  // console.log("🔍 Verifying QuickToken Contract");
+  // console.log("----------------------------------------------------");
+  // console.log(`Network:            ${network.name}`);
+  // console.log(`Contract Address:   ${contractAddress}`);
+  // console.log(`Token Name:         ${tokenName}`);
+  // console.log(`Token Symbol:       ${tokenSymbol}`);
+  // console.log(`Initial Supply:     ${initialSupply}`);
+  // console.log(`Max Supply:         ${maxSupply}`);
+  // console.log(`Mint Fee (BPS):     ${mintFeeBps}`);
+  // console.log(`Unlock Time:        ${new Date(unlockTime * 1000).toISOString()}`);
+  // console.log(`Platform Fee Addr:  ${platformFeeAddress}`);
+  // console.log("----------------------------------------------------");
   
   try {
     // Verify the contract
@@ -71,9 +71,9 @@ async function verifyContract(hre, deploymentData) {
     });
     
     // Success - show block explorer links
-    console.log("✅ Contract verified successfully!");
-    console.log("----------------------------------------------------");
-    console.log("🔗 Block Explorer Links:");
+    // console.log("✅ Contract verified successfully!");
+    // console.log("----------------------------------------------------");
+    // console.log("🔗 Block Explorer Links:");
     
     let explorerUrl = "";
     if (network.name === "mainnet") {
@@ -96,26 +96,30 @@ async function verifyContract(hre, deploymentData) {
       explorerUrl = `https://etherscan.io/token/${contractAddress}`;
     }
     
-    console.log(explorerUrl);
-    console.log("----------------------------------------------------");
+    // console.log(explorerUrl);
+    // console.log("----------------------------------------------------");
     
   } catch (error) {
     // Handle verification errors
     if (error.message.includes("Already Verified")) {
-      console.log("✅ Contract already verified");
+      // console.log("✅ Contract already verified");
     } else if (error.message.includes("Pending")) {
-      console.log("⏳ Verification pending. Please check the block explorer.");
+      // console.log("⏳ Verification pending. Please check the block explorer.");
     } else if (error.message.includes("matching bytecode")) {
       console.error("❌ Verification failed: Bytecode does not match.");
       console.error("Possible causes:");
       console.error("1. Contract was compiled with different settings");
       console.error("2. Constructor arguments are incorrect");
       console.error("3. Wrong contract address provided");
+    } else if (error.message.includes('already verified')) {
+      // console.log("✅ Contract already verified");
+    } else if (error.message.includes('does not have bytecode') || error.message.includes('has no bytecode')){
+      // console.log("⏳ Verification pending. Please check the block explorer.");
     } else {
-      console.error("❌ Verification failed:", error.message);
+      console.error("❌ Verification failed:", error);
     }
-    
-    console.log("----------------------------------------------------");
+  } finally {
+    // console.log("----------------------------------------------------");
   }
 }
 
@@ -151,4 +155,3 @@ if (require.main === module) {
 }
 
 module.exports = { verifyContract, readDeploymentData }; 
-}; 

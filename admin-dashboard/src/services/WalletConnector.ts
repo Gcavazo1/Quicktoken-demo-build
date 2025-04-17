@@ -205,13 +205,13 @@ export class WalletConnector {
   private handleAccountsChanged(accounts: string[]) {
     if (accounts.length === 0) {
       // Handle disconnection or lock
-       console.log('[WalletConnector] Wallet locked or disconnected (accounts empty).');
+       // console.log('[WalletConnector] Wallet locked or disconnected (accounts empty).');
       // Call internal disconnect logic to clear state
       this.handleDisconnectEvent(); 
     } else {
       // Update account if it changed
       if (accounts[0] !== this.lastKnownAccount) {
-         console.log(`[WalletConnector] Account changed to: ${accounts[0]}`);
+         // console.log(`[WalletConnector] Account changed to: ${accounts[0]}`);
         this.lastKnownAccount = accounts[0].toLowerCase(); // Normalize address
       }
     }
@@ -219,7 +219,7 @@ export class WalletConnector {
   
   // Handler for the EIP-1193 'disconnect' event
   private handleDisconnectEvent() {
-     console.log(`[WalletConnector] Received 'disconnect' event from provider: ${this.activeProviderDetail?.info.name}`);
+     // console.log(`[WalletConnector] Received 'disconnect' event from provider: ${this.activeProviderDetail?.info.name}`);
      this.disconnect(false); // Call internal disconnect, false means don't remove listeners yet (they are auto-removed by EIP-1193?)
   }
 
@@ -230,7 +230,7 @@ export class WalletConnector {
    * Connect to a specific provider identified by its RDNS.
    */
   public async connect(rdns: string): Promise<ConnectResult> {
-     console.log(`[WalletConnector] Attempting to connect using RDNS: ${rdns}`);
+     // console.log(`[WalletConnector] Attempting to connect using RDNS: ${rdns}`);
     // Ensure discovery has run (or wait for it?) - for now, assume it has run
     if (!this.discoveryComplete && this.discoveredProviders.size === 0) {
        console.warn("[WalletConnector] Connect called before discovery finished or found providers.");
@@ -253,12 +253,12 @@ export class WalletConnector {
 
     try {
       this.activeEthersProvider = new ethers.BrowserProvider(targetProvider, 'any'); // Use specific provider, 'any' allows auto network detection
-       console.log(`[WalletConnector] Created ethers BrowserProvider for ${providerDetail.info.name}`);
+       // console.log(`[WalletConnector] Created ethers BrowserProvider for ${providerDetail.info.name}`);
       
       // Request accounts - this should trigger the wallet connect prompt
-       console.log(`[WalletConnector] Requesting accounts ('eth_requestAccounts') from ${providerDetail.info.name}...`);
+       // console.log(`[WalletConnector] Requesting accounts ('eth_requestAccounts') from ${providerDetail.info.name}...`);
       const accounts = await targetProvider.request({ method: 'eth_requestAccounts' }) as string[];
-       console.log(`[WalletConnector] Received accounts:`, accounts);
+       // console.log(`[WalletConnector] Received accounts:`, accounts);
 
       if (!accounts || accounts.length === 0) {
         this.disconnect(); // Ensure cleanup if connection fails
@@ -268,15 +268,15 @@ export class WalletConnector {
       this.lastKnownAccount = accounts[0].toLowerCase(); // Normalize
       
       // Get chain ID
-       console.log(`[WalletConnector] Requesting chain ID ('eth_chainId') from ${providerDetail.info.name}...`);
+       // console.log(`[WalletConnector] Requesting chain ID ('eth_chainId') from ${providerDetail.info.name}...`);
       const chainIdHex = await targetProvider.request({ method: 'eth_chainId' }) as string;
       this.lastKnownChainId = parseInt(chainIdHex, 16);
-       console.log(`[WalletConnector] Received chain ID: ${this.lastKnownChainId} (Hex: ${chainIdHex})`);
+       // console.log(`[WalletConnector] Received chain ID: ${this.lastKnownChainId} (Hex: ${chainIdHex})`);
 
       // Setup event listeners for the *active* provider
       this.setupEventListeners(targetProvider);
 
-       console.log(`[WalletConnector] Connection successful to ${providerDetail.info.name}, Account: ${this.lastKnownAccount}, ChainID: ${this.lastKnownChainId}`);
+       // console.log(`[WalletConnector] Connection successful to ${providerDetail.info.name}, Account: ${this.lastKnownAccount}, ChainID: ${this.lastKnownChainId}`);
       return {
         provider: this.activeEthersProvider,
         account: this.lastKnownAccount,
@@ -307,7 +307,7 @@ export class WalletConnector {
    * Note: This doesn't necessarily disconnect the wallet extension itself.
    */
   public disconnect(removeListeners = true): void {
-    console.log(`[WalletConnector] disconnect called. Active provider: ${this.activeProviderDetail?.info.name}`);
+    // console.log(`[WalletConnector] disconnect called. Active provider: ${this.activeProviderDetail?.info.name}`);
     if (removeListeners) {
        this.removeEventListeners();
     }
@@ -317,7 +317,7 @@ export class WalletConnector {
     this.lastKnownChainId = null;
     this.isNetworkChanging = false;
     // Do NOT clear discoveredProviders here, discovery runs once on init
-    console.log('[WalletConnector] Internal state cleared.');
+    // console.log('[WalletConnector] Internal state cleared.');
      // Optionally notify listeners about disconnection
      window.dispatchEvent(new CustomEvent('walletDisconnected'));
   }
@@ -330,25 +330,25 @@ export class WalletConnector {
     
     // If no provider is stored as active, we are disconnected
     if (!this.activeProviderDetail || !this.activeEthersProvider) {
-      console.log(`${logPrefix} No active provider detail stored. Returning disconnected state.`);
+      // console.log(`${logPrefix} No active provider detail stored. Returning disconnected state.`);
       return { provider: null, account: null, chainId: null };
     }
 
     const targetProvider = this.activeProviderDetail.provider;
     const providerName = this.activeProviderDetail.info.name;
-    console.log(`${logPrefix} Checking state for active provider: ${providerName}`);
+    // console.log(`${logPrefix} Checking state for active provider: ${providerName}`);
 
     try {
       // Use eth_accounts to check without triggering prompts
-      console.log(`${logPrefix} Requesting 'eth_accounts' from ${providerName}...`);
+      // console.log(`${logPrefix} Requesting 'eth_accounts' from ${providerName}...`);
       const accounts = await targetProvider.request({ method: 'eth_accounts' }) as string[];
-      console.log(`${logPrefix} Received accounts:`, accounts);
+      // console.log(`${logPrefix} Received accounts:`, accounts);
 
       const currentAccount = accounts && accounts.length > 0 ? accounts[0].toLowerCase() : null; // Normalize
 
       // If no account, wallet is locked or disconnected from dapp perspective
       if (!currentAccount) {
-        console.log(`${logPrefix} No accounts returned from ${providerName}. Wallet locked or disconnected.`);
+        // console.log(`${logPrefix} No accounts returned from ${providerName}. Wallet locked or disconnected.`);
         // If state changed to disconnected, trigger internal cleanup
         if (this.lastKnownAccount !== null) {
             this.disconnect(); // Clear all state if we transition to disconnected
@@ -358,25 +358,25 @@ export class WalletConnector {
       
       // Update internal account if necessary
       if (currentAccount !== this.lastKnownAccount) {
-         console.log(`${logPrefix} Account updated: ${currentAccount}`);
+         // console.log(`${logPrefix} Account updated: ${currentAccount}`);
          this.lastKnownAccount = currentAccount;
       }
 
       // Get current chain ID
-      console.log(`${logPrefix} Requesting 'eth_chainId' from ${providerName}...`);
+      // console.log(`${logPrefix} Requesting 'eth_chainId' from ${providerName}...`);
       const chainIdHex = await targetProvider.request({ method: 'eth_chainId' }) as string;
       const currentChainId = parseInt(chainIdHex, 16);
-       console.log(`${logPrefix} Received chainId: ${currentChainId} (Hex: ${chainIdHex})`);
+       // console.log(`${logPrefix} Received chainId: ${currentChainId} (Hex: ${chainIdHex})`);
 
       if (currentChainId !== this.lastKnownChainId) {
-         console.log(`${logPrefix} Chain ID updated: ${currentChainId}`);
+         // console.log(`${logPrefix} Chain ID updated: ${currentChainId}`);
          this.lastKnownChainId = currentChainId;
       }
       
       // Return current valid state
       // ** Add final check before accessing activeProviderDetail **
       if (!this.activeProviderDetail) {
-        console.log(`${logPrefix} Active provider became null during execution. Returning disconnected state.`);
+        // console.log(`${logPrefix} Active provider became null during execution. Returning disconnected state.`);
         return { provider: null, account: null, chainId: null };
       }
 
@@ -386,7 +386,7 @@ export class WalletConnector {
         chainId: this.lastKnownChainId,
         walletInfo: this.activeProviderDetail.info, 
       };
-      console.log(`${logPrefix} Returning final state:`, finalResult);
+      // console.log(`${logPrefix} Returning final state:`, finalResult);
       return finalResult;
 
     } catch (error) {

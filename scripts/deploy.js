@@ -165,7 +165,7 @@ function saveDeploymentInfo(deploymentInfo, customPath) {
       "utf8"
     );
     
-    console.log(`Deployment information saved to: ${filePath}`);
+    // console.log(`Deployment information saved to: ${filePath}`);
   } catch (error) {
     console.error(`Failed to save deployment information: ${error.message}`);
   }
@@ -181,27 +181,27 @@ async function deploy(config) {
   const maxSupply = ethers.parseEther(config.maxSupply.toString());
   
   // Print deployment parameters
-  console.log("----------------------------------------------------");
-  console.log("🚀 Deploying QuickToken Contract");
-  console.log("----------------------------------------------------");
-  console.log(`Network:          ${network.name}`);
-  console.log(`Token Name:       ${config.name}`);
-  console.log(`Token Symbol:     ${config.symbol}`);
-  console.log(`Initial Supply:   ${config.initialSupply} tokens`);
-  console.log(`Max Supply:       ${config.maxSupply} tokens`);
-  console.log(`Mint Fee (BPS):   ${config.mintFeeBps} (${config.mintFeeBps/100}%)`);
-  console.log(`Unlock Time:      ${new Date(config.unlockTime * 1000).toISOString()}`);
-  console.log(`Platform Address: ${config.platformFeeAddress}`);
-  console.log("----------------------------------------------------");
+  // console.log("----------------------------------------------------");
+  // console.log("🚀 Deploying QuickToken Contract");
+  // console.log("----------------------------------------------------");
+  // console.log(`Network:          ${network.name}`);
+  // console.log(`Token Name:       ${config.name}`);
+  // console.log(`Token Symbol:     ${config.symbol}`);
+  // console.log(`Initial Supply:   ${config.initialSupply} tokens`);
+  // console.log(`Max Supply:       ${config.maxSupply} tokens`);
+  // console.log(`Mint Fee (BPS):   ${config.mintFeeBps} (${config.mintFeeBps/100}%)`);
+  // console.log(`Unlock Time:      ${new Date(config.unlockTime * 1000).toISOString()}`);
+  // console.log(`Platform Address: ${config.platformFeeAddress}`);
+  // console.log("----------------------------------------------------");
 
     // Get the contract factory
   const QuickToken = await ethers.getContractFactory("QuickToken");
     
   // Deploy the contract
-    console.log("Deploying contract...");
+    // console.log("Deploying contract...");
   const deployer = await ethers.provider.getSigner();
   const deployerAddress = await deployer.getAddress();
-  console.log(`Deployer account: ${deployerAddress}`);
+  // console.log(`Deployer account: ${deployerAddress}`);
   
   const quickToken = await QuickToken.deploy(
     config.name,
@@ -217,9 +217,9 @@ async function deploy(config) {
     await quickToken.waitForDeployment();
     const contractAddress = await quickToken.getAddress();
     
-  console.log("----------------------------------------------------");
-  console.log(`✅ QuickToken deployed to: ${contractAddress}`);
-  console.log("----------------------------------------------------");
+  // console.log("----------------------------------------------------");
+  // console.log(`✅ QuickToken deployed to: ${contractAddress}`);
+  // console.log("----------------------------------------------------");
   
   // Build deployment info
   const deploymentInfo = {
@@ -257,15 +257,15 @@ async function main() {
     const { contract, deploymentInfo } = await deploy(config);
     
     // Show success message
-    console.log("🎉 Deployment successful!");
-    console.log(`Use 'npx hardhat verify --network ${network.name} ${deploymentInfo.contractAddress} "${config.name}" "${config.symbol}" "${config.initialSupply}" "${config.maxSupply}" ${config.mintFeeBps} ${config.unlockTime} "${config.platformFeeAddress}"' to verify on Etherscan`);
-    console.log("Or simply run: npx hardhat run scripts/verify.js --network " + network.name);
+    // console.log("🎉 Deployment successful!");
+    // console.log(`Use 'npx hardhat verify --network ${network.name} ${deploymentInfo.contractAddress} "${config.name}" "${config.symbol}" "${config.initialSupply}" "${config.maxSupply}" ${config.mintFeeBps} ${config.unlockTime} "${config.platformFeeAddress}"' to verify on Etherscan`);
+    // console.log("Or simply run: npx hardhat run scripts/verify.js --network " + network.name);
     
     return { contract, deploymentInfo };
   } catch (error) {
-    console.error("----------------------------------------------------");
-    console.error("❌ Deployment failed:", error.message);
-    console.error("----------------------------------------------------");
+    // console.error("----------------------------------------------------");
+    // console.error("❌ Deployment failed:", error.message);
+    // console.error("----------------------------------------------------");
     process.exit(1);
   }
 }
@@ -275,7 +275,7 @@ if (require.main === module) {
 main()
     .then(() => process.exit(0))
   .catch((error) => {
-    console.error(error);
+    // console.error(error);
     process.exit(1);
   });
 }

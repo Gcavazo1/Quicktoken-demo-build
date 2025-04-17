@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { useWallet } from '../hooks/useWallet';
 import { useNetwork } from '../contexts/NetworkContext';
-import { useTokenContext } from '../contexts/TokenContext'; // Assuming this hook exists
+import useTokenContext from '../contexts/TokenContext'; // Corrected: Default import
 import { NetworkType } from '../contexts/NetworkContext';
 import { DeployedToken } from '../lib/deployToken'; // Assuming this type exists
 

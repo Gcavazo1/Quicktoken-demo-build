@@ -232,94 +232,32 @@ Whitelist data: ${JSON.stringify(whitelist)}
       .map(entry => entry.address.toLowerCase());
   };
   
-  // --- Whitelist Modification Logic ---
-
-  // Helper function to save the current whitelist state to localStorage
-  const saveCurrentWhitelistToLocalStorage = (updatedEntries: WhitelistEntry[]) => {
-    try {
-      // Construct the full WhitelistConfig object expected by localStorage
-      const currentOwner = updatedEntries.find(e => e.permissions.includes('owner'))?.address || ''; // Find current owner
-      const configToSave: WhitelistConfig = {
-        entries: updatedEntries,
-        ownerAddress: currentOwner, // Use the potentially updated owner
-        lastModified: Date.now(),
-        whitelistEnabled: true, // Assuming always true when saved from context modifications
-        // owners: updatedEntries.filter(e => e.permissions.includes('owner')).map(e => e.address) // Optional: could regenerate this
-      };
-      localStorage.setItem(WHITELIST_STORAGE_KEY, JSON.stringify(configToSave));
-      console.log(`[WhitelistContext] Saved updated whitelist (${updatedEntries.length} entries) to localStorage.`);
-    } catch (error) {
-      console.error('[WhitelistContext] Failed to save whitelist to localStorage:', error);
-    }
-  };
-
-  // Add an address to the whitelist
-  const addToWhitelist = (addressToAdd: string, label: string, permissions: string[]) => {
-    const normalizedAddress = addressToAdd.toLowerCase();
-    // Prevent duplicates
-    if (whitelist.some(entry => entry.address.toLowerCase() === normalizedAddress)) {
-      console.warn(`[WhitelistContext] Address ${normalizedAddress} already exists in whitelist.`);
-      // Maybe provide user feedback here via a notification context?
-      return; 
-    }
-
-    const newEntry: WhitelistEntry = {
-      address: normalizedAddress,
-      label,
-      addedAt: Date.now(),
-      permissions,
-    };
-
-    const updatedWhitelist = [...whitelist, newEntry];
-    setWhitelist(updatedWhitelist);
-    saveCurrentWhitelistToLocalStorage(updatedWhitelist); // Save updated list
+  // Add an address to the whitelist (DEPRECATED - Use SettingsPage state modification)
+  const addToWhitelist = (address: string, label: string, permissions: string[]) => {
+     console.warn("addToWhitelist directly on context is deprecated. Modify config via SettingsPage.");
+     // Potential future implementation: Dispatch an event or update a central config store?
   };
   
-  // Remove an address from the whitelist 
+  // Remove an address from the whitelist (DEPRECATED - Use SettingsPage state modification)
   const removeFromWhitelist = (addressToRemove: string): boolean => {
-    const normalizedAddressToRemove = addressToRemove.toLowerCase();
-    const entryToRemove = whitelist.find(e => e.address.toLowerCase() === normalizedAddressToRemove);
-
-    if (!entryToRemove) {
-      console.warn(`[WhitelistContext] Address ${normalizedAddressToRemove} not found.`);
-      return false;
-    }
-
-    // Prevent removing the last owner
-    const ownerEntries = whitelist.filter(e => e.permissions.includes('owner'));
-    if (entryToRemove.permissions.includes('owner') && ownerEntries.length <= 1) {
-       console.warn('[WhitelistContext] Cannot remove the last owner.');
-       // Provide user feedback needed here (e.g., notification)
-       return false;
-    }
-
-    const updatedWhitelist = whitelist.filter(entry => entry.address.toLowerCase() !== normalizedAddressToRemove);
-    setWhitelist(updatedWhitelist);
-    saveCurrentWhitelistToLocalStorage(updatedWhitelist); // Save updated list
-    return true;
+    console.warn("removeFromWhitelist directly on context is deprecated. Modify config via SettingsPage.");
+    return false; // Indicate failure as it doesn't modify state
   };
   
-  // Convenience method to add an owner (uses addToWhitelist)
+  // Convenience method to add an owner (DEPRECATED)
   const addOwner = (address: string, label: string) => {
-    // Ensure 'owner' and 'admin' permissions are included
-    const permissions = ['owner', 'admin'];
-    addToWhitelist(address, label || 'Owner', permissions);
+    console.warn("addOwner directly on context is deprecated. Modify config via SettingsPage.");
   };
   
-  // Convenience method to remove an owner (uses removeFromWhitelist)
+  // Convenience method to remove an owner (DEPRECATED)
   const removeOwner = (address: string): boolean => {
-    // Simply call the main remove function
-    return removeFromWhitelist(address);
+    console.warn("removeOwner directly on context is deprecated. Modify config via SettingsPage.");
+    return false;
   };
 
-  // --- Deprecated / Placeholder Functions ---
-  const legacyLoadWhitelist = (): null => {
-     console.warn("legacyLoadWhitelist is deprecated. Whitelist loads on init.");
-     return null;
-  }; 
-  const legacySaveWhitelist = (config: WhitelistConfig) => {
-     console.warn("legacySaveWhitelist is deprecated. Use context modification functions (addToWhitelist/removeOwner).");
-  }; 
+  // Save/Load functions are no longer needed here as config is managed externally
+  const legacyLoadWhitelist = (): null => null; // Placeholder
+  const legacySaveWhitelist = (config: WhitelistConfig) => {}; // Placeholder
   
   // Helper to get current wallet address safely (still useful internally)
   const getCurrentWalletAddress = (): string => {

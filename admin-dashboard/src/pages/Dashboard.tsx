@@ -18,10 +18,8 @@ import { Loader2 } from 'lucide-react';
 import WalletSelectorModal from '../components/WalletSelectorModal';
 import { useWallet } from '../hooks/useWallet';
 import { useNetwork, NetworkType } from '../contexts/NetworkContext';
-import Notification from '../components/Notification';
-import { useNotification } from '../contexts/NotificationContext';
+import { loadTokensByNetwork } from '../lib/deployToken';
 import NetworkSwitch from '../components/NetworkSwitch';
-import Header from '../components/Header';
 import ImportTokenModal from '../components/ImportTokenModal';
 
 // Add type definition for window.ethereum
@@ -37,6 +35,16 @@ interface DashboardProps {
   onSwitchView?: () => void;
 }
 
+const Header: React.FC<{config: QuickTokenConfig}> = ({config}) => (
+  <header className="bg-secondary border-b border-border p-4">
+    <div className="max-w-7xl mx-auto flex justify-between items-center">
+      <h1 className="text-xl font-semibold text-primary">
+        {config.branding?.title || "QuickToken Dashboard"}
+      </h1>
+    </div>
+  </header>
+);
+
 const Dashboard: React.FC<DashboardProps> = ({ 
   config,
   configSource = 'local',
@@ -51,7 +59,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   const { isWhitelisted, isOwner } = useWhitelist();
   const { address: account, provider, isConnected, isInitializing } = useWallet();
   const { currentNetwork, configuredNetworks } = useNetwork();
-  const { addNotification } = useNotification();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // --- OTHER HOOKS & INSTANCES ---
@@ -186,7 +193,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   useEffect(() => {
     const allTokensByNetwork = loadTokensByNetwork();
-    const currentChainId = currentNetwork?.chainId ? parseInt(currentNetwork.chainId, 10) : null;
+    const currentChainId = currentNetwork?.chainId ? parseInt(currentNetwork.chainId.toString(), 10) : null;
     if (currentChainId) {
       setTokens(allTokensByNetwork[currentChainId] || []);
     } else {
@@ -244,12 +251,27 @@ const Dashboard: React.FC<DashboardProps> = ({
             
             <div className="bg-secondary rounded-lg overflow-hidden border border-border shadow-md">
               <div className="px-6 py-5 border-b border-border">
-                <h2 className="text-lg font-medium text-primary">
-                  Your Tokens
-                </h2>
-                <p className="mt-1 text-sm text-secondary">
-                  Manage your deployed ERC-20 tokens
-                </p>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-lg font-medium text-primary">
+                      Your Tokens
+                    </h2>
+                    <p className="mt-1 text-sm text-secondary">
+                      Manage your deployed ERC-20 tokens
+                    </p>
+                  </div>
+                  <div>
+                    <button
+                      onClick={() => setIsImportModalOpen(true)}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md flex items-center"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Import Token
+                    </button>
+                  </div>
+                </div>
               </div>
               <div>
                 <TokenTable

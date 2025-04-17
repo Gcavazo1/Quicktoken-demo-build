@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { useWallet } from '../hooks/useWallet';
 import { useNetwork } from '../contexts/NetworkContext';
-import useTokenContext from '../contexts/TokenContext'; // Corrected: Default import
+import { useTokens } from '../contexts/TokenContext'; // Changed to use the proper hook
 import { NetworkType } from '../contexts/NetworkContext';
 import { DeployedToken } from '../lib/types/tokens'; // Corrected path
 
@@ -27,10 +27,12 @@ interface FetchedTokenDetails {
 const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) => {
   const { address: walletAddress, provider } = useWallet();
   const { currentNetwork, configuredNetworks } = useNetwork();
-  const { addToken } = useTokenContext(); // Assuming context provides an addToken function
+  const { importToken } = useTokens(); // Use useTokens hook and get importToken function
 
   const [contractAddress, setContractAddress] = useState('');
-  const [selectedNetworkChainId, setSelectedNetworkChainId] = useState<string | undefined>(currentNetwork?.chainId);
+  const [selectedNetworkChainId, setSelectedNetworkChainId] = useState<string | undefined>(
+    currentNetwork?.chainId ? currentNetwork.chainId.toString() : undefined
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchedDetails, setFetchedDetails] = useState<FetchedTokenDetails | null>(null);
@@ -39,7 +41,7 @@ const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) 
   // Update selected network if context changes
   useEffect(() => {
     if (currentNetwork && isOpen) {
-      setSelectedNetworkChainId(currentNetwork.chainId);
+      setSelectedNetworkChainId(currentNetwork.chainId.toString());
     }
   }, [currentNetwork, isOpen]);
 
@@ -61,7 +63,7 @@ const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) 
 
   const resetModalState = useCallback(() => {
     setContractAddress('');
-    setSelectedNetworkChainId(currentNetwork?.chainId);
+    setSelectedNetworkChainId(currentNetwork?.chainId ? currentNetwork.chainId.toString() : undefined);
     setIsLoading(false);
     setError(null);
     setFetchedDetails(null);
@@ -133,7 +135,7 @@ const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) 
 
     } catch (err: any) {
       console.error('Error fetching token details:', err);
-      const message = err.reason || err.message || 'Failed to fetch token details. Check the address and network, and ensure it's a valid ERC20 contract.';
+      const message = err.reason || err.message || "Failed to fetch token details. Check the address and network, and ensure it's a valid ERC20 contract.";
       setError(message);
       setFetchedDetails(null);
     } finally {
@@ -153,18 +155,26 @@ const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) 
         symbol: fetchedDetails.symbol,
         decimals: fetchedDetails.decimals,
         chainId: parseInt(selectedNetworkChainId, 10), // Ensure chainId is number
-        deployerAddress: walletAddress || 'imported', // Indicate it was imported
+        owner: walletAddress || 'imported', // Changed from deployerAddress to owner
         deployedAt: Date.now(), // Timestamp of import
-        // Add any other required fields from DeployedToken with defaults
+        // Add missing required fields with default values
+        initialSupply: '0',
+        maxSupply: '0',
+        mintFeeBps: 0,
+        unlockTime: 0,
+        platformFeeAddress: '0x0000000000000000000000000000000000000000',
+        platformFeePercentage: 0,
+        totalSupply: '0',
+        paused: false
      };
 
      try {
-        addToken(tokenToAdd); // Call the context function to add/save
-        console.log('Token added:', tokenToAdd);
+        importToken(contractAddress); // Call the context function to import token
+        console.log('Token imported:', tokenToAdd);
         // Maybe show a success notification here
         handleClose(); // Close modal on success
      } catch (err) {
-        console.error("Failed to add token via context:", err);
+        console.error("Failed to import token via context:", err);
         setError("Failed to save the token.");
      }
   };
@@ -196,7 +206,7 @@ const ImportTokenModal: React.FC<ImportTokenModalProps> = ({ isOpen, onClose }) 
               className="w-full p-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded focus:ring-blue-500 focus:border-blue-500"
             >
               {configuredNetworks.map(network => (
-                <option key={network.chainId} value={network.chainId}>
+                <option key={network.chainId} value={network.chainId.toString()}>
                   {network.name} (ID: {network.chainId})
                 </option>
               ))}

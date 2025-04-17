@@ -4,7 +4,7 @@ import { useWallet } from '../hooks/useWallet';
 import { useNetwork } from '../contexts/NetworkContext';
 import useTokenContext from '../contexts/TokenContext'; // Corrected: Default import
 import { NetworkType } from '../contexts/NetworkContext';
-import { DeployedToken } from '../lib/deployToken'; // Assuming this type exists
+import { DeployedToken } from '../lib/types/tokens'; // Corrected path
 
 // Minimal ERC20 ABI for fetching details
 const minimalErc20Abi = [

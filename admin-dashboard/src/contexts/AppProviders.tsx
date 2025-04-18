@@ -25,7 +25,7 @@ const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
   // State to track if component is mounted (client-side)
   const [isMounted, setIsMounted] = useState(false);
   
-  // Create a client for React Query (safe to create server-side, just not provided)
+  // Create a client for React Query
   const [queryClient] = useState(() => new QueryClient());
 
   // Set mounted state after component mounts on client
@@ -33,49 +33,34 @@ const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
     setIsMounted(true);
   }, []);
   
-  // Render null or a loader until mounted on the client
-  // This prevents children from rendering prematurely without necessary providers
-  if (!isMounted) {
-    // Option: Render null (may cause layout shift briefly)
-    // return null;
-    // Option: Render a simple loader/placeholder
+  // We need to wait until mounted AND wagmiConfig is available
+  // wagmiConfig is null during SSR
+  if (!isMounted || !wagmiConfig) {
+    // Render a minimal placeholder or null during SSR and initial client render
+    // This prevents any child from attempting to access Wagmi/QueryClient contexts prematurely
     return (
       <ThemeProvider> {/* Theme might be okay server-side */} 
          <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-           Loading Dashboard...
+           Initializing...
          </div>
        </ThemeProvider>
     );
   }
 
-  // Client-side rendering: Render all providers AND the children
+  // Client-side rendering: Now we know we are mounted AND wagmiConfig exists
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Render WagmiConfig only if wagmiConfig is not null (which it is on server) */} 
-      {wagmiConfig ? (
-         <WagmiConfig config={wagmiConfig}> 
-           <ThemeProvider>
-             <WhitelistProvider>
-               <NetworkProvider>
-                 <TokenProvider>
-                   {children}
-                 </TokenProvider>
-               </NetworkProvider>
-             </WhitelistProvider>
-           </ThemeProvider>
-         </WagmiConfig>
-       ) : (
-         // Fallback if wagmiConfig is somehow null on client (shouldn't happen with isMounted check)
-         <ThemeProvider>
-           <WhitelistProvider>
-             <NetworkProvider>
-               <TokenProvider>
-                 {children}
-               </TokenProvider>
-             </NetworkProvider>
-           </WhitelistProvider>
-         </ThemeProvider>
-       )}
+      <WagmiConfig config={wagmiConfig}> 
+        <ThemeProvider>
+          <WhitelistProvider>
+            <NetworkProvider>
+              <TokenProvider>
+                {children} 
+              </TokenProvider>
+            </NetworkProvider>
+          </WhitelistProvider>
+        </ThemeProvider>
+      </WagmiConfig>
     </QueryClientProvider>
   );
 };

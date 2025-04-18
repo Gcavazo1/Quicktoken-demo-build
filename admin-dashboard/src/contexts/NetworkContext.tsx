@@ -59,15 +59,30 @@ interface NetworkProviderProps {
 }
 
 export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) => {
+  // State to track if component is mounted (client-side)
+  const [isMounted, setIsMounted] = useState(false);
   const [currentNetwork, setCurrentNetwork] = useState<NetworkInfo | null>(null);
   const [isChangingNetwork, setIsChangingNetwork] = useState(false);
   const [isConfigLoading, setIsConfigLoading] = useState(true);
   const [loadedConfiguredNetworks, setLoadedConfiguredNetworks] = useState<NetworkInfo[]>([]);
+  
+  // Set mounted state after component mounts on client
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
+  // Only access useWallet if we're mounted on client side
   const wallet = useWallet();
-  const { isConnected, chainId: walletChainId, changeNetwork: walletChangeNetwork } = wallet;
+  
+  // Safely extract wallet properties with defaults
+  const isConnected = wallet?.isConnected || false;
+  const walletChainId = wallet?.chainId || null;
+  const walletChangeNetwork = wallet?.changeNetwork || (async () => false);
   
   // Function to load/parse config from storage and update state
   const loadAndSetConfig = useCallback(() => {
+      if (typeof window === 'undefined') return; // Skip on server side
+      
       console.log('[NetworkContext] Executing loadAndSetConfig...');
       let networks: NetworkInfo[] = [];
       let isLoading = true;
@@ -111,12 +126,18 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
 
   // Effect for initial loading 
   useEffect(() => {
+    // Skip on server side
+    if (typeof window === 'undefined') return;
+    
     console.log('[NetworkContext] Initial mount effect running.');
     loadAndSetConfig(); // Call the loading function on mount
   }, [loadAndSetConfig]); // Depend on the memoized loading function
 
   // Effect to listen for storage changes
   useEffect(() => {
+      // Skip on server side
+      if (typeof window === 'undefined') return;
+      
       const handleStorageChange = (event: StorageEvent) => {
           const CONFIG_STORAGE_KEY = 'quicktoken_config'; // Correct key
           if (event.key === CONFIG_STORAGE_KEY) { 
@@ -132,9 +153,6 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
           window.removeEventListener('storage', handleStorageChange);
       };
   }, [loadAndSetConfig]); // Depend on the memoized loading function
-  
-  // REMOVED Effect that only set loading state 
-  // useEffect(() => { ... }, [configuredNetworks]); 
 
   // Helper to get network by chain ID (Memoized)
   const getNetworkByChainId = useCallback((chainId: number): NetworkInfo | undefined => {
@@ -143,6 +161,9 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
 
   // Effect to synchronize context network with wallet network
   useEffect(() => {
+    // Skip if not mounted or no wallet connection
+    if (!isMounted) return;
+    
     if (isConnected && walletChainId) {
       const supportedNetwork = getNetworkByChainId(walletChainId);
       if (supportedNetwork) {
@@ -163,14 +184,17 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
       }
     }
     // Dependency array: run when connection status or wallet chainId changes, or when network definitions change
-  }, [isConnected, walletChainId, loadedConfiguredNetworks, getNetworkByChainId, currentNetwork]);
+  }, [isConnected, walletChainId, loadedConfiguredNetworks, getNetworkByChainId, currentNetwork, isMounted]);
 
   // Save current network to localStorage when it changes (for persistence when disconnected)
   useEffect(() => {
+    // Skip on server side
+    if (typeof window === 'undefined' || !isMounted) return;
+    
     if (currentNetwork) {
       localStorage.setItem('quicktoken_last_network', JSON.stringify(currentNetwork));
     }
-  }, [currentNetwork]);
+  }, [currentNetwork, isMounted]);
 
   // Helper to get network color based on chain ID
   const getNetworkColor = (chainId: number): string => {
@@ -223,6 +247,9 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
 
   // Function to SET the network (user-initiated)
   const setNetwork = async (network: NetworkInfo): Promise<boolean> => {
+    // Skip detailed implementation on server side
+    if (typeof window === 'undefined' || !isMounted) return false;
+    
     // Check if already on this network (based on context state)
     if (currentNetwork?.chainId === network.chainId) {
       return true; // Already on the desired network
@@ -267,6 +294,7 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
     return success;
   };
 
+  // Create memoized context value to avoid unnecessary re-renders
   const contextValue: NetworkContextType = useMemo(() => ({
     currentNetwork,
     setNetwork,

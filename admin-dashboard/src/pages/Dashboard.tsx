@@ -12,7 +12,7 @@ import { useWhitelist } from '../contexts/WhitelistContext';
 import AdminBadge from '../components/AdminBadge';
 import { Button } from '../components/Button';
 import { Loader2, PlusCircle } from 'lucide-react';
-import WalletSelectorModal from '../components/WalletSelectorModal';
+import dynamic from 'next/dynamic';
 import AddTokenModal from '../components/AddTokenModal';
 import { useWallet } from '../hooks/useWallet';
 import { useNetwork, NetworkType } from '../contexts/NetworkContext';
@@ -43,6 +43,12 @@ interface ProviderInfo {
   icon?: string;
 }
 
+// Dynamically import WalletSelectorModal with no SSR
+const WalletSelectorModal = dynamic(
+  () => import('../components/WalletSelectorModal'),
+  { ssr: false }
+);
+
 const Dashboard: React.FC<DashboardProps> = ({ 
   config,
   configSource = 'local',
@@ -59,6 +65,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  // Track client-side mounting
+  const [isMounted, setIsMounted] = useState(false);
 
   // --- OTHER HOOKS & INSTANCES ---
   const {
@@ -75,6 +83,25 @@ const Dashboard: React.FC<DashboardProps> = ({
   const wallet = useWallet();
   const { currentNetwork, setNetwork: setContextNetwork } = useNetwork();
   const { open } = useClientWeb3Modal();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Skip using web3 hooks during SSR
+  if (typeof window === 'undefined' || !isMounted) {
+    // Render a loading state or simplified UI during SSR
+    return (
+      <div className={`min-h-screen flex flex-col items-center justify-center bg-primary text-primary ${isDarkMode ? 'dark' : 'light'}`}>
+        <div className="text-center p-8">
+          <h1 className="text-xl font-semibold mb-4">
+            {config.branding.title}
+          </h1>
+          <p className="text-secondary">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   // --- Add Helper Function from WalletSelectorModal --- 
   const getWalletIcon = (providerInfo: ProviderInfo): string => {
@@ -166,7 +193,14 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   // Handle wallet connection - use Web3Modal directly
   const handleConnectWallet = () => {
-    open();
+    // Ensure we're on client side
+    if (typeof window !== 'undefined') {
+      try {
+        open();
+      } catch (error) {
+        console.error("Error opening Web3Modal:", error);
+      }
+    }
   };
 
   // --- SIDE EFFECTS HOOK ---

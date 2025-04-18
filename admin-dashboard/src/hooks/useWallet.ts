@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useAccount, useDisconnect, useSwitchChain, useConfig } from 'wagmi';
 import { useClientWeb3Modal } from './useClientWeb3Modal';
 import { NETWORKS, NetworkInfo } from '../shared/constants/networks';
@@ -26,10 +26,47 @@ interface WalletContextValue {
   changeNetwork: (newChainId: number) => Promise<boolean>;
 }
 
+// Default values for SSR
+const defaultWalletValue: WalletContextValue = {
+  provider: null,
+  address: null,
+  chainId: null,
+  isConnected: false,
+  isConnecting: false,
+  isInitializing: false,
+  isNetworkSwitching: false,
+  error: null,
+  walletInfo: null,
+  connectWallet: async () => false,
+  disconnectWallet: () => {},
+  getNetwork: () => null,
+  formatAddress: () => '',
+  getBalance: async () => '0',
+  isNetworkSupported: () => false,
+  changeNetwork: async () => false,
+};
+
 /**
  * Hook for managing wallet connection state using Wagmi
  */
 export const useWallet = (): WalletContextValue => {
+  // Check if we're in a browser environment
+  const isBrowser = typeof window !== 'undefined';
+  
+  // State to track if component is mounted (client-side)
+  const [isMounted, setIsMounted] = useState(false);
+  
+  // Set mounted state after component mounts on client
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
+  // Return default values during SSR or before hydration
+  if (!isBrowser || !isMounted) {
+    return defaultWalletValue;
+  }
+  
+  // All the Wagmi hooks - only used on client-side after the check above
   const { address, isConnected, chainId, status } = useAccount();
   const { open } = useClientWeb3Modal();
   const { disconnect } = useDisconnect();

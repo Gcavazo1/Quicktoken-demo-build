@@ -3,12 +3,17 @@ import { mainnet, sepolia, goerli, polygon, polygonMumbai, bsc, bscTestnet, arbi
 import { injected, walletConnect } from 'wagmi/connectors'
 import { createWeb3Modal } from '@web3modal/wagmi'
 
-// 1. Get Project ID
-const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
+// Check if we're running on the client
+const isClient = typeof window !== 'undefined'
 
-if (!projectId) {
-  // Throw an error during build if the Project ID is not set.
-  throw new Error('NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set in environment variables')
+// 1. Get Project ID - safely check for env variables
+let projectId = ''
+if (isClient && typeof process !== 'undefined') {
+  projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || ''
+  
+  if (!projectId) {
+    console.warn('NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set in environment variables')
+  }
 }
 
 // 2. Define supported chains - Type as const array to satisfy TypeScript
@@ -26,8 +31,8 @@ const metadata = {
   icons: [] // Add icon URL(s) when available
 }
 
-// 4. Create Wagmi config
-export const wagmiConfig = createConfig({
+// 4. Create Wagmi config - Only on client
+export const wagmiConfig = isClient ? createConfig({
   chains: supportedChains,
   transports: {
     // Use http transport provider for each chain
@@ -53,18 +58,22 @@ export const wagmiConfig = createConfig({
     injected(), // Standard injected providers (window.ethereum)
     walletConnect({ projectId }) // WalletConnect
   ]
-})
+}) : null as any; // Provide a null with type assertion for SSR
 
 // 5. Initialize Web3Modal with the Wagmi config
 // This must be called before any component uses useWeb3Modal
-if (typeof window !== 'undefined') { // Ensure this only runs on client-side
-  createWeb3Modal({
-    wagmiConfig,
-    projectId,
-    themeMode: 'light', // or 'dark' based on your app's theme
-    themeVariables: {
-      // Customize theme if needed
-      // '--w3m-accent-color': '#3B82F6',
-    }
-  })
+if (isClient && wagmiConfig && projectId) {
+  try {
+    createWeb3Modal({
+      wagmiConfig,
+      projectId,
+      themeMode: 'light', // or 'dark' based on your app's theme
+      themeVariables: {
+        // Customize theme if needed
+        // '--w3m-accent-color': '#3B82F6',
+      }
+    })
+  } catch (error) {
+    console.error('Failed to initialize Web3Modal:', error)
+  }
 } 

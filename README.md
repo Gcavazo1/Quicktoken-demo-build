@@ -183,17 +183,3 @@ For advanced users, the project includes Hardhat scripts in the `/scripts` direc
 *   `verify.js`: Contract verification on Etherscan-like explorers.
 
 Using these scripts requires configuring the `.env` file as mentioned in Step 4.
-
-## WalletConnect Integration
-
-This project uses WalletConnect for wallet connectivity, especially for mobile wallets. To make this functionality work, you need to:
-
-1. Visit https://cloud.walletconnect.com/ and sign up for an account
-2. Create a new project to get a Project ID
-3. Add this Project ID to your `.env` file:
-
-```
-NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id_here
-```
-
-Without this Project ID, the wallet connection feature will not work properly.

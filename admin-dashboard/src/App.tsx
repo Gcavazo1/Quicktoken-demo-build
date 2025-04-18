@@ -6,31 +6,6 @@ import AppProviders from './contexts/AppProviders';
 import { loadStaticConfiguration } from './utils/configImport';
 import './styles/index.css';
 
-// --- Web3Modal Initialization Imports ---
-import { createWeb3Modal } from '@web3modal/wagmi';
-import { wagmiConfig } from './lib/web3Config';
-import { mainnet, sepolia, goerli, polygon, polygonMumbai, bsc, bscTestnet, arbitrum, avalanche, base, optimism, fantom, baseGoerli, gnosis, zkSync, linea, scroll } from 'wagmi/chains';
-
-// Get Project ID outside component
-const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
-
-// Define metadata outside component
-const metadata = {
-  name: 'QuickToken Dashboard',
-  description: 'Deploy and manage your ERC-20 tokens',
-  url: 'https://quicktoken-dashboard-demo.vercel.app/',
-  icons: []
-};
-
-// Define supported chains outside component
-const supportedChains = [
-  mainnet, goerli, sepolia, polygon, polygonMumbai, bsc, bscTestnet,
-  arbitrum, avalanche, base, optimism, fantom, baseGoerli, gnosis,
-  zkSync, linea, scroll
-] as const;
-
-// --- End Web3Modal Initialization Imports ---
-
 // Helper function to apply branding settings to CSS variables
 const applyBrandingStyles = (config: QuickTokenConfig) => {
   // Set dashboard title
@@ -47,26 +22,6 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'dashboard' | 'settings'>('dashboard');
   const [configSource, setConfigSource] = useState<'local' | 'static' | 'none'>('none');
   const [isNewSetup, setIsNewSetup] = useState<boolean>(false);
-
-  // --- Initialize Web3Modal Client-Side --- 
-  useEffect(() => {
-    if (typeof window !== 'undefined') { // Ensure this runs only in the browser
-      if (projectId) {
-        createWeb3Modal({
-          wagmiConfig,
-          projectId,
-          featuredWalletIds: [],
-          themeMode: 'light',
-          themeVariables: {},
-          metadata,
-          // Note: chains are derived from wagmiConfig now, no need to pass explicitly
-        });
-      } else {
-        console.error("WalletConnect Project ID (NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID) is not set. Web3Modal will not function.");
-      }
-    }
-  }, []); // Empty dependency array ensures this runs only once on mount
-  // --- End Web3Modal Client-Side Initialization ---
 
   useEffect(() => {
     async function initializeConfig() {
@@ -234,33 +189,27 @@ const App: React.FC = () => {
   );
 
   return (
-    <AppProviders>
-      <div className="min-h-screen">
-        {isLoading ? (
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="loading-spinner"></div>
-          </div>
-        ) : setupComplete && config ? (
-          <>
-            {/* Navigation header */}
-            <NavigationHeader />
-            
-            {/* Main content */}
-            {currentView === 'dashboard' ? (
-              <Dashboard 
-                config={config} 
-                configSource={configSource} 
-                onSwitchView={() => setCurrentView('settings')}
-              />
-            ) : (
-              <Settings />
-            )}
-          </>
-        ) : (
-          <SetupWizard onComplete={handleSetupComplete} />
-        )}
-      </div>
-    </AppProviders>
+    <div className="min-h-screen">
+      {setupComplete && config ? (
+        <>
+          {/* Navigation header */}
+          <NavigationHeader />
+          
+          {/* Main content */}
+          {currentView === 'dashboard' ? (
+            <Dashboard 
+              config={config} 
+              configSource={configSource} 
+              onSwitchView={() => setCurrentView('settings')}
+            />
+          ) : (
+            <Settings />
+          )}
+        </>
+      ) : (
+        <SetupWizard onComplete={handleSetupComplete} />
+      )}
+    </div>
   );
 };
 

@@ -7,7 +7,6 @@ import { truncateAddress } from '../../utils/format';
 import { QuickTokenConfig } from '../../pages/SetupWizard';
 import { EIP6963ProviderInfo, EIP6963ProviderDetail } from '../../services/WalletConnector';
 import { Loader2 } from 'lucide-react';
-import { useWeb3Modal } from '@web3modal/wagmi/react';
 
 interface ConfigExportStepProps {
   onProceed: () => void;
@@ -50,8 +49,6 @@ const ConfigExportStep: React.FC<ConfigExportStepProps> = ({
   const [isVerifying, setIsVerifying] = useState(true);
   const [hasExported, setHasExported] = useState(false);
 
-  const { open } = useWeb3Modal();
-
   useEffect(() => {
     isMountedRef.current = true;
     setIsInSetupMode(true);
@@ -80,8 +77,12 @@ const ConfigExportStep: React.FC<ConfigExportStepProps> = ({
     };
   }, [setIsInSetupMode, reloadWhitelist]);
   
-  const handleConnect = async () => {
-    open();
+  const handleConnect = async (rdns: string | null) => {
+    if (!rdns) {
+       console.error("Could not identify the wallet provider.");
+       return;
+    }
+    await connectWallet(rdns);
   };
   
   const handleDisconnect = () => {
@@ -172,7 +173,7 @@ const ConfigExportStep: React.FC<ConfigExportStepProps> = ({
                     {metamaskProvider && (
                      <button
                       key={METAMASK_RDNS}
-                      onClick={handleConnect}
+                      onClick={() => handleConnect(METAMASK_RDNS)}
                       disabled={isConnecting}
                       className="flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded disabled:opacity-50 disabled:cursor-wait transition-colors"
                      >
@@ -185,7 +186,7 @@ const ConfigExportStep: React.FC<ConfigExportStepProps> = ({
                     {coinbaseProvider && (
                      <button
                       key={COINBASE_RDNS}
-                      onClick={handleConnect}
+                      onClick={() => handleConnect(COINBASE_RDNS)}
                       disabled={isConnecting}
                       className="flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded disabled:opacity-50 disabled:cursor-wait transition-colors"
                      >
@@ -194,23 +195,12 @@ const ConfigExportStep: React.FC<ConfigExportStepProps> = ({
                      </button>
                     )}
 
-                    {/* If no specific providers, show a generic connect button */}
-                    {!metamaskProvider && !coinbaseProvider && discoveredProviders.size > 0 && (
-                      <button
-                        onClick={handleConnect}
-                        disabled={isConnecting}
-                        className="flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded disabled:opacity-50 disabled:cursor-wait transition-colors"
-                      >
-                        Connect Wallet
-                      </button>
-                    )}
-
-                    {/* Info if no providers found at all */}
-                    {discoveredProviders.size === 0 && !isConnecting && (
-                      <p className="text-xs text-gray-500">Searching for wallet providers... Ensure a wallet extension is active or try refreshing.</p>
+                    {/* Info if no specific providers found */} 
+                    {!metamaskProvider && !coinbaseProvider && discoveredProviders.size === 0 && !isConnecting && (
+                      <p className="text-xs text-gray-500">Searching for wallet providers... Ensure MetaMask or Coinbase Wallet extension is active.</p>
                     )}
                     
-                    {/* Generic loading indicator */}
+                    {/* Generic loading indicator */} 
                     {isConnecting && (
                        <p className="text-xs text-gray-400 flex items-center">
                          <svg className="animate-spin mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">

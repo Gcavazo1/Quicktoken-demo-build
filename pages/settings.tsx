@@ -11,10 +11,6 @@ import { useRouter } from 'next/router'; // Added for redirection
 import { ethers } from 'ethers'; // Needed for address validation
 import HelpIcon from '../admin-dashboard/src/components/HelpIcon'; // Needed for WhitelistTab
 import { NETWORKS, NetworkInfo } from '../admin-dashboard/src/shared/constants/networks';
-import dynamic from 'next/dynamic';
-
-// Import ClientOnly component we created
-import ClientOnly from '../admin-dashboard/src/components/ClientOnly';
 
 // Helper function to apply branding styles during preview
 const applyPreviewStyles = (config: QuickTokenConfig | null) => { // Allow null
@@ -1061,17 +1057,4 @@ const SettingsPage: React.FC = () => { // Removed props
   );
 };
 
-// Export a modified version that only renders on client-side
-export default dynamic(() => Promise.resolve(
-  (props: any) => (
-    <ClientOnly 
-      fallback={
-        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div>Loading Settings...</div>
-        </div>
-      }
-    >
-      <SettingsPage {...props} />
-    </ClientOnly>
-  )
-), { ssr: false });
+export default SettingsPage; // Export as default page component

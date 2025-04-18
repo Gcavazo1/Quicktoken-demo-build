@@ -16,7 +16,7 @@ import WalletSelectorModal from '../components/WalletSelectorModal';
 import AddTokenModal from '../components/AddTokenModal';
 import { useWallet } from '../hooks/useWallet';
 import { useNetwork, NetworkType } from '../contexts/NetworkContext';
-import { useWeb3Modal } from '@web3modal/wagmi/react';
+import { useClientWeb3Modal } from '../hooks/useClientWeb3Modal';
 import TokenDetailModal from '../components/TokenDetailModal';
 import TokenActionsForm from '../components/TokenActionsForm';
 import { X, Download, Upload, Info, AlertTriangle, Trash2, RefreshCw, Copy } from 'lucide-react';
@@ -74,7 +74,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const { isWhitelisted, isOwner } = useWhitelist();
   const wallet = useWallet();
   const { currentNetwork, setNetwork: setContextNetwork } = useNetwork();
-  const { open } = useWeb3Modal();
+  const { open } = useClientWeb3Modal();
 
   // --- Add Helper Function from WalletSelectorModal --- 
   const getWalletIcon = (providerInfo: ProviderInfo): string => {

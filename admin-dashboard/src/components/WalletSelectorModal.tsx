@@ -1,6 +1,11 @@
-import React from 'react';
-import { useWeb3Modal } from '@web3modal/wagmi/react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Button } from './Button';
+import { ethers } from 'ethers';
 import { useAccount } from 'wagmi';
+import { useWallet } from '../hooks/useWallet';
+import { useClientWeb3Modal } from '../hooks/useClientWeb3Modal';
+import { useNetwork } from '../contexts/NetworkContext';
+import Image from 'next/image';
 
 // Define props required for backward compatibility
 interface WalletSelectorModalProps {
@@ -25,8 +30,10 @@ const WalletSelectorModal: React.FC<WalletSelectorModalProps> = ({
   onClose = () => {}, 
   onRequestClose = () => {}
 }) => {
-  const { open } = useWeb3Modal();
   const { isConnected } = useAccount();
+  const { connectWallet, disconnectWallet } = useWallet();
+  const { open } = useClientWeb3Modal();
+  const { currentNetwork } = useNetwork();
   
   // Combine close functions
   const handleClose = React.useCallback(() => {

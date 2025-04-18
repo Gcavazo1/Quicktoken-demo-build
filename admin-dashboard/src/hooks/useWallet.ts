@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useAccount, useDisconnect, useSwitchChain, useConfig } from 'wagmi';
-import { useWeb3Modal } from '@web3modal/wagmi/react';
+import { useClientWeb3Modal } from './useClientWeb3Modal';
 import { NETWORKS, NetworkInfo } from '../shared/constants/networks';
 import { truncateAddress } from '../utils/format';
 import { getPublicClient, getWalletClient, disconnect } from 'wagmi/actions';
@@ -31,7 +31,7 @@ interface WalletContextValue {
  */
 export const useWallet = (): WalletContextValue => {
   const { address, isConnected, chainId, status } = useAccount();
-  const { open } = useWeb3Modal();
+  const { open } = useClientWeb3Modal();
   const { disconnect } = useDisconnect();
   const { switchChain, isPending: isNetworkSwitching, error: switchError } = useSwitchChain();
   const [error, setError] = useState<string | null>(null);

@@ -53,4 +53,18 @@ export const wagmiConfig = createConfig({
     injected(), // Standard injected providers (window.ethereum)
     walletConnect({ projectId }) // WalletConnect
   ]
-}) 
+})
+
+// 5. Initialize Web3Modal with the Wagmi config
+// This must be called before any component uses useWeb3Modal
+if (typeof window !== 'undefined') { // Ensure this only runs on client-side
+  createWeb3Modal({
+    wagmiConfig,
+    projectId,
+    themeMode: 'light', // or 'dark' based on your app's theme
+    themeVariables: {
+      // Customize theme if needed
+      // '--w3m-accent-color': '#3B82F6',
+    }
+  })
+} 

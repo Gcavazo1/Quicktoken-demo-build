@@ -5,10 +5,7 @@ import TokenTable from '../components/TokenTable';
 import ConfirmDialog from '../components/ConfirmDialog';
 import NetworkSelector from '../components/NetworkSelector';
 import { useTokens } from '../contexts/TokenContext';
-import { WalletConnector, EIP6963ProviderDetail, EIP6963ProviderInfo } from '../services/WalletConnector';
-import { QuickTokenConfig } from './SetupWizard';
 import { getNetworkName, getNetworkBadgeClass } from '../shared/constants/networks';
-import { DeployedToken } from '../lib/types/tokens';
 import { useTheme } from '../contexts/ThemeContext';
 import { truncateAddress } from '../utils/format';
 import { useWhitelist } from '../contexts/WhitelistContext';
@@ -19,6 +16,12 @@ import WalletSelectorModal from '../components/WalletSelectorModal';
 import AddTokenModal from '../components/AddTokenModal';
 import { useWallet } from '../hooks/useWallet';
 import { useNetwork, NetworkType } from '../contexts/NetworkContext';
+import { useWeb3Modal } from '@web3modal/wagmi/react';
+import TokenDetailModal from '../components/TokenDetailModal';
+import TokenActionsForm from '../components/TokenActionsForm';
+import { X, Download, Upload, Info, AlertTriangle, Trash2, RefreshCw, Copy } from 'lucide-react';
+import { QuickTokenConfig } from './SetupWizard';
+import { DeployedToken } from '../lib/types/tokens';
 
 // Add type definition for window.ethereum
 declare global {
@@ -33,6 +36,13 @@ interface DashboardProps {
   onSwitchView?: () => void;
 }
 
+// Define a basic provider info type to replace EIP6963ProviderInfo
+interface ProviderInfo {
+  name: string;
+  rdns?: string;
+  icon?: string;
+}
+
 const Dashboard: React.FC<DashboardProps> = ({ 
   config,
   configSource = 'local',
@@ -42,8 +52,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   const { setTheme } = useTheme();
   const [showResetDialog, setShowResetDialog] = useState<boolean>(false);
   const [showWalletSelector, setShowWalletSelector] = useState<boolean>(false);
-  const [availableProviders, setAvailableProviders] = useState<EIP6963ProviderDetail[]>([]);
+  const [selectedToken, setSelectedToken] = useState<DeployedToken | null>(null);
+  const [availableTokens, setAvailableTokens] = useState<DeployedToken[]>([]);
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [isAddTokenModalOpen, setIsAddTokenModalOpen] = useState<boolean>(false);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // --- OTHER HOOKS & INSTANCES ---
   const {
@@ -57,12 +72,12 @@ const Dashboard: React.FC<DashboardProps> = ({
     ownedNetworkTokens
   } = useTokens();
   const { isWhitelisted, isOwner } = useWhitelist();
-  const connector = WalletConnector;
   const wallet = useWallet();
   const { currentNetwork, setNetwork: setContextNetwork } = useNetwork();
+  const { open } = useWeb3Modal();
 
   // --- Add Helper Function from WalletSelectorModal --- 
-  const getWalletIcon = (providerInfo: EIP6963ProviderInfo): string => {
+  const getWalletIcon = (providerInfo: ProviderInfo): string => {
     // Prioritize specific RDNS matches for custom icons
     if (providerInfo.rdns === 'io.metamask') {
       return '/images/metamask-logo.png';
@@ -72,14 +87,15 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   
     // If no RDNS match, try to use the provided icon if it seems valid
-    const isValidIcon = providerInfo.icon && (providerInfo.icon.startsWith('data:image') || /\.(svg|png|jpe?g|webp)$/i.test(providerInfo.icon));
+    const icon = providerInfo.icon || '';
+    const isValidIcon = icon && (icon.startsWith('data:image') || /\.(svg|png|jpe?g|webp)$/i.test(icon));
+    
     if (isValidIcon) {
-      return providerInfo.icon;
+      return icon;
     }
     
-    // Final fallback: return original icon or a default placeholder
-    // return '/images/default-wallet.png'; // Example placeholder
-    return providerInfo.icon; // Return original icon data even if it might not render
+    // Final fallback
+    return '/images/default-wallet.png';
   };
 
   // --- CALLBACK HOOKS ---
@@ -125,7 +141,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const handleNetworkSelect = async (chainIdStr: string) => {
-    const targetNetwork = config.networks.configuredNetworks.find(n => n.chainId === chainIdStr);
+    const targetNetwork = config.networks.configuredNetworks.find((n: any) => n.chainId === chainIdStr);
     if (targetNetwork) {
       const networkInfo: NetworkType = {
         chainId: parseInt(targetNetwork.chainId),
@@ -148,43 +164,21 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
-  const handleProvidersUpdate = useCallback(() => {
-    const connectorInstance = WalletConnector.getInstance();
-    const providersMap = connectorInstance.getDiscoveredProviders();
-    setAvailableProviders(Array.from(providersMap.values()));
-    if (providersMap.size === 0 && !connectorInstance.isDiscoveryComplete()) {
-      console.log("Discovering wallets... Please wait a moment.");
-    }
-    setShowWalletSelector(true);
-  }, []);
-
-  const handleShowWalletSelector = useCallback(() => {
-    const connectorInstance = WalletConnector.getInstance();
-    const providersMap = connectorInstance.getDiscoveredProviders();
-    setAvailableProviders(Array.from(providersMap.values()));
-    if (providersMap.size === 0 && !connectorInstance.isDiscoveryComplete()) {
-      console.log("Discovering wallets... Please wait a moment.");
-    }
-    setShowWalletSelector(true);
-  }, []);
+  // Handle wallet connection - use Web3Modal directly
+  const handleConnectWallet = () => {
+    open();
+  };
 
   // --- SIDE EFFECTS HOOK ---
   useEffect(() => {
-    window.addEventListener('walletProvidersUpdated', handleProvidersUpdate);
-    return () => {
-      window.removeEventListener('walletProvidersUpdated', handleProvidersUpdate);
-    };
-  }, [handleProvidersUpdate]);
-
-  useEffect(() => {
-      if (config.theme && (config.theme === 'light' || config.theme === 'dark')) {
-        setTheme(config.theme);
-      }
+    if (config.theme && (config.theme === 'light' || config.theme === 'dark')) {
+      setTheme(config.theme);
+    }
   }, [config.theme, setTheme]);
 
   // --- RENDER ---
   return (
-    <div className="min-h-screen flex flex-col bg-primary text-primary">
+    <div className={`min-h-screen flex flex-col bg-primary text-primary ${isDarkMode ? 'dark' : 'light'}`}>
       {/* Header */}
       <header className="bg-secondary border-b border-border shadow-md">
         <div className="max-w-7xl mx-auto px-6 py-4">
@@ -214,7 +208,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 onNetworkChange={(id) => handleNetworkSelect(id.toString())}
                 className="w-60"
               />
-              {wallet.isConnected && (
+              {wallet.isConnected ? (
                 <div className="flex items-center space-x-4">
                   <img 
                     src={wallet.walletInfo ? getWalletIcon(wallet.walletInfo) : ''}
@@ -244,6 +238,18 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <span>{wallet.isConnecting ? 'Disconnecting...' : 'Disconnect'}</span>
                   </Button>
                 </div>
+              ) : (
+                <Button
+                  onClick={handleConnectWallet}
+                  disabled={wallet.isConnecting}
+                  variant="default"
+                  size="lg"
+                >
+                  {wallet.isConnecting ? (
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  ) : null}
+                  {wallet.isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                </Button>
               )}
             </div>
           </div>
@@ -324,43 +330,24 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="text-center py-20">
             <h2 className="text-2xl font-semibold text-primary mb-4">Wallet Not Connected</h2>
             <p className="text-secondary mb-6">Please connect your wallet to manage tokens.</p>
-            <Button
-              onClick={handleShowWalletSelector}
-              disabled={wallet.isConnecting}
-              variant="default"
-              size="lg"
-            >
-              {wallet.isConnecting ? (
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              ) : null}
-              {wallet.isConnecting ? 'Connecting...' : 'Connect Wallet'}
-            </Button>
-            {wallet.error && (
-              <div className="mt-6 p-3 bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-200 rounded-md max-w-md mx-auto">
-                {wallet.error}
-              </div>
-            )}
           </div>
         )}
       </main>
       
       <ConfirmDialog
-        isOpen={showResetDialog}
+        isOpen={isResetDialogOpen}
         title="Reset Dashboard Configuration"
         message="This is an admin-only action that will completely reset your dashboard configuration. All settings, including whitelisted admin addresses, platform fee configuration, network settings, and theme preferences will be cleared, and you'll be redirected to the setup wizard. Note: This action cannot be undone."
         confirmText="Yes, Reset Everything"
         cancelText="Cancel"
         onConfirm={handleResetConfirm}
-        onCancel={handleResetCancel}
+        onCancel={() => setIsResetDialogOpen(false)}
         variant="danger"
       />
 
       <WalletSelectorModal
         isOpen={showWalletSelector}
         onClose={() => setShowWalletSelector(false)}
-        providers={availableProviders}
-        onConnect={(providerDetail) => wallet.connectWallet(providerDetail.info.rdns)}
-        isLoading={wallet.isConnecting}
       />
 
       <AddTokenModal 

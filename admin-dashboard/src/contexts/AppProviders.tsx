@@ -1,9 +1,12 @@
 import React, { ReactNode } from 'react';
-// import { NotificationProvider } from './NotificationContext'; // Removed
 import { NetworkProvider } from './NetworkContext';
 import { TokenProvider } from './TokenContext';
 import { ThemeProvider } from './ThemeContext';
 import { WhitelistProvider } from './WhitelistContext';
+
+// --- Import Wagmi config and provider ---
+import { WagmiConfig } from 'wagmi';
+import { wagmiConfig } from '../lib/web3Config'; // Adjusted import path
 
 interface AppProvidersProps {
   children: ReactNode;
@@ -12,27 +15,24 @@ interface AppProvidersProps {
 /**
  * Application providers wrapper component
  * 
- * Wraps the application with all necessary context providers in the correct order:
- * - ThemeProvider (outermost, for theming)
- * - NotificationProvider (needs no dependencies)
- * - WhitelistProvider (for admin access control)
- * - NetworkProvider (depends on notifications)
- * - TokenProvider (depends on networks and notifications)
+ * Wraps the application with all necessary context providers including Wagmi.
  */
 const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
   return (
-    <ThemeProvider>
-      {/* <NotificationProvider> */}{/* Removed */}
-        <WhitelistProvider>
-          <NetworkProvider>
-            <TokenProvider>
-              {children}
-            </TokenProvider>
-          </NetworkProvider>
-        </WhitelistProvider>
-      {/* </NotificationProvider> */}{/* Removed */}
-    </ThemeProvider>
+    <WagmiConfig config={wagmiConfig}>
+      <ThemeProvider>
+        {/* <NotificationProvider> */}{/* Removed */}
+          <WhitelistProvider>
+            <NetworkProvider>
+              <TokenProvider>
+                {children}
+              </TokenProvider>
+            </NetworkProvider>
+          </WhitelistProvider>
+        {/* </NotificationProvider> */}{/* Removed */}
+      </ThemeProvider>
+    </WagmiConfig>
   );
 };
 
-export default AppProviders; 
+export default AppProviders;

@@ -53,16 +53,4 @@ export const wagmiConfig = createConfig({
     injected(), // Standard injected providers (window.ethereum)
     walletConnect({ projectId }) // WalletConnect
   ]
-})
-
-// 5. Create Web3Modal instance
-createWeb3Modal({
-  wagmiConfig,
-  projectId,
-  featuredWalletIds: [], // Optional: Specify featured wallet IDs
-  themeMode: 'light',
-  themeVariables: {
-    // Can customize the theme here if needed
-  },
-  metadata
 }) 

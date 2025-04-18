@@ -6,6 +6,45 @@ import AppProviders from './contexts/AppProviders';
 import { loadStaticConfiguration } from './utils/configImport';
 import './styles/index.css';
 
+// --- Web3Modal Initialization ---
+import { createWeb3Modal } from '@web3modal/wagmi';
+import { wagmiConfig } from './lib/web3Config';
+import { mainnet, sepolia, goerli, polygon, polygonMumbai, bsc, bscTestnet, arbitrum, avalanche, base, optimism, fantom, baseGoerli, gnosis, zkSync, linea, scroll } from 'wagmi/chains';
+
+// 1. Get Project ID
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
+
+// Define supported chains (ensure this matches web3Config.ts)
+const supportedChains = [
+  mainnet, goerli, sepolia, polygon, polygonMumbai, bsc, bscTestnet,
+  arbitrum, avalanche, base, optimism, fantom, baseGoerli, gnosis,
+  zkSync, linea, scroll
+] as const;
+
+// Define metadata (ensure this matches web3Config.ts)
+const metadata = {
+  name: 'QuickToken Dashboard',
+  description: 'Deploy and manage your ERC-20 tokens',
+  url: 'https://quicktoken-dashboard-demo.vercel.app/',
+  icons: []
+};
+
+// Call createWeb3Modal here, but outside the component render cycle
+// It needs to be called once
+if (projectId) {
+  createWeb3Modal({
+    wagmiConfig,
+    projectId,
+    featuredWalletIds: [],
+    themeMode: 'light',
+    themeVariables: {},
+    metadata
+  });
+} else {
+  console.error("WalletConnect Project ID (NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID) is not set. Web3Modal will not function.");
+}
+// --- End Web3Modal Initialization ---
+
 // Helper function to apply branding settings to CSS variables
 const applyBrandingStyles = (config: QuickTokenConfig) => {
   // Set dashboard title
@@ -189,27 +228,33 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen">
-      {setupComplete && config ? (
-        <>
-          {/* Navigation header */}
-          <NavigationHeader />
-          
-          {/* Main content */}
-          {currentView === 'dashboard' ? (
-            <Dashboard 
-              config={config} 
-              configSource={configSource} 
-              onSwitchView={() => setCurrentView('settings')}
-            />
-          ) : (
-            <Settings />
-          )}
-        </>
-      ) : (
-        <SetupWizard onComplete={handleSetupComplete} />
-      )}
-    </div>
+    <AppProviders>
+      <div className="min-h-screen">
+        {isLoading ? (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="loading-spinner"></div>
+          </div>
+        ) : setupComplete && config ? (
+          <>
+            {/* Navigation header */}
+            <NavigationHeader />
+            
+            {/* Main content */}
+            {currentView === 'dashboard' ? (
+              <Dashboard 
+                config={config} 
+                configSource={configSource} 
+                onSwitchView={() => setCurrentView('settings')}
+              />
+            ) : (
+              <Settings />
+            )}
+          </>
+        ) : (
+          <SetupWizard onComplete={handleSetupComplete} />
+        )}
+      </div>
+    </AppProviders>
   );
 };
 

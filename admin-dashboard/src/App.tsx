@@ -6,22 +6,15 @@ import AppProviders from './contexts/AppProviders';
 import { loadStaticConfiguration } from './utils/configImport';
 import './styles/index.css';
 
-// --- Web3Modal Initialization ---
+// --- Web3Modal Initialization Imports ---
 import { createWeb3Modal } from '@web3modal/wagmi';
 import { wagmiConfig } from './lib/web3Config';
 import { mainnet, sepolia, goerli, polygon, polygonMumbai, bsc, bscTestnet, arbitrum, avalanche, base, optimism, fantom, baseGoerli, gnosis, zkSync, linea, scroll } from 'wagmi/chains';
 
-// 1. Get Project ID
+// Get Project ID outside component
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 
-// Define supported chains (ensure this matches web3Config.ts)
-const supportedChains = [
-  mainnet, goerli, sepolia, polygon, polygonMumbai, bsc, bscTestnet,
-  arbitrum, avalanche, base, optimism, fantom, baseGoerli, gnosis,
-  zkSync, linea, scroll
-] as const;
-
-// Define metadata (ensure this matches web3Config.ts)
+// Define metadata outside component
 const metadata = {
   name: 'QuickToken Dashboard',
   description: 'Deploy and manage your ERC-20 tokens',
@@ -29,21 +22,14 @@ const metadata = {
   icons: []
 };
 
-// Call createWeb3Modal here, but outside the component render cycle
-// It needs to be called once
-if (projectId) {
-  createWeb3Modal({
-    wagmiConfig,
-    projectId,
-    featuredWalletIds: [],
-    themeMode: 'light',
-    themeVariables: {},
-    metadata
-  });
-} else {
-  console.error("WalletConnect Project ID (NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID) is not set. Web3Modal will not function.");
-}
-// --- End Web3Modal Initialization ---
+// Define supported chains outside component
+const supportedChains = [
+  mainnet, goerli, sepolia, polygon, polygonMumbai, bsc, bscTestnet,
+  arbitrum, avalanche, base, optimism, fantom, baseGoerli, gnosis,
+  zkSync, linea, scroll
+] as const;
+
+// --- End Web3Modal Initialization Imports ---
 
 // Helper function to apply branding settings to CSS variables
 const applyBrandingStyles = (config: QuickTokenConfig) => {
@@ -61,6 +47,26 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'dashboard' | 'settings'>('dashboard');
   const [configSource, setConfigSource] = useState<'local' | 'static' | 'none'>('none');
   const [isNewSetup, setIsNewSetup] = useState<boolean>(false);
+
+  // --- Initialize Web3Modal Client-Side --- 
+  useEffect(() => {
+    if (typeof window !== 'undefined') { // Ensure this runs only in the browser
+      if (projectId) {
+        createWeb3Modal({
+          wagmiConfig,
+          projectId,
+          featuredWalletIds: [],
+          themeMode: 'light',
+          themeVariables: {},
+          metadata,
+          // Note: chains are derived from wagmiConfig now, no need to pass explicitly
+        });
+      } else {
+        console.error("WalletConnect Project ID (NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID) is not set. Web3Modal will not function.");
+      }
+    }
+  }, []); // Empty dependency array ensures this runs only once on mount
+  // --- End Web3Modal Client-Side Initialization ---
 
   useEffect(() => {
     async function initializeConfig() {

@@ -1,11 +1,8 @@
 {
   "core": {
     "platformFeeAddress": "0xc94d6e57D9b2D65f5eBEEc12ee3Cf653C4390862",
-    "platformFeePercentage": 25,
-    "theme": "dark",
-    "branding": {
-      "title": "QuickToken Dashboard"
-    },
+    "platformFeePercentage": 30,
+    "infuraId": "",
     "wallets": {
       "metamask": true,
       "coinbase": true
@@ -24,57 +21,7 @@
           "chainId": "1",
           "rpcUrl": "https://mainnet.infura.io/v3/your-infura-key",
           "explorerUrl": "https://etherscan.io",
-          "isEnabled": true,
-          "shortName": "",
-          "currencySymbol": "",
-          "testnet": false
-        },
-        {
-          "name": "Base Goerli",
-          "chainId": "84531",
-          "rpcUrl": "https://goerli.base.org",
-          "explorerUrl": "https://goerli.basescan.org",
-          "isEnabled": true,
-          "shortName": "",
-          "currencySymbol": "",
-          "testnet": false
-        },
-        {
-          "name": "Gnosis Chain",
-          "chainId": "100",
-          "rpcUrl": "https://rpc.gnosischain.com",
-          "explorerUrl": "https://gnosisscan.io",
-          "isEnabled": true,
-          "shortName": "",
-          "currencySymbol": "",
-          "testnet": false
-        },
-        {
-          "name": "zkSync Era",
-          "chainId": "324",
-          "rpcUrl": "https://mainnet.era.zksync.io",
-          "explorerUrl": "https://explorer.zksync.io",
-          "isEnabled": true,
-          "shortName": "",
-          "currencySymbol": "",
-          "testnet": false
-        },
-        {
-          "name": "Linea",
-          "chainId": "59144",
-          "rpcUrl": "https://rpc.linea.build",
-          "explorerUrl": "https://lineascan.build",
-          "isEnabled": true,
-          "shortName": "",
-          "currencySymbol": "",
-          "testnet": false
-        },
-        {
-          "name": "Scroll",
-          "chainId": "534352",
-          "rpcUrl": "https://rpc.scroll.io",
-          "explorerUrl": "https://scrollscan.com",
-          "isEnabled": true,
+          "isEnabled": false,
           "shortName": "",
           "currencySymbol": "",
           "testnet": false
@@ -85,6 +32,76 @@
           "rpcUrl": "https://sepolia.infura.io/v3/your-infura-key",
           "explorerUrl": "https://sepolia.etherscan.io",
           "isEnabled": true,
+          "shortName": "",
+          "currencySymbol": "",
+          "testnet": false
+        },
+        {
+          "name": "Polygon",
+          "chainId": "137",
+          "rpcUrl": "https://polygon-rpc.com",
+          "explorerUrl": "https://polygonscan.com",
+          "isEnabled": false,
+          "shortName": "",
+          "currencySymbol": "",
+          "testnet": false
+        },
+        {
+          "name": "BSC",
+          "chainId": "56",
+          "rpcUrl": "https://bsc-dataseed.binance.org",
+          "explorerUrl": "https://bscscan.com",
+          "isEnabled": false,
+          "shortName": "",
+          "currencySymbol": "",
+          "testnet": false
+        },
+        {
+          "name": "Base",
+          "chainId": "8453",
+          "rpcUrl": "https://mainnet.base.org",
+          "explorerUrl": "https://basescan.org",
+          "isEnabled": false,
+          "shortName": "",
+          "currencySymbol": "",
+          "testnet": false
+        },
+        {
+          "name": "Optimism",
+          "chainId": "10",
+          "rpcUrl": "https://mainnet.optimism.io",
+          "explorerUrl": "https://optimistic.etherscan.io",
+          "isEnabled": false,
+          "shortName": "",
+          "currencySymbol": "",
+          "testnet": false
+        },
+        {
+          "name": "Arbitrum",
+          "chainId": "42161",
+          "rpcUrl": "https://arb1.arbitrum.io/rpc",
+          "explorerUrl": "https://arbiscan.io",
+          "isEnabled": false,
+          "shortName": "",
+          "currencySymbol": "",
+          "testnet": false
+        },
+        {
+          "name": "Avalanche",
+          "chainId": "43114",
+          "rpcUrl": "https://api.avax.network/ext/bc/C/rpc",
+          "explorerUrl": "https://snowtrace.io",
+          "isEnabled": false,
+          "shortName": "",
+          "currencySymbol": "",
+          "testnet": false
+        },
+        {
+          "name": "Fantom",
+          "chainId": "250",
+          "rpcUrl": "https://rpcapi.fantom.network",
+          "explorerUrl": "https://ftmscan.com",
+          "isEnabled": false,
           "shortName": "",
           "currencySymbol": "",
           "testnet": false
@@ -110,80 +127,64 @@
           "testnet": false
         },
         {
-          "name": "Polygon",
-          "chainId": "137",
-          "rpcUrl": "https://polygon-rpc.com",
-          "explorerUrl": "https://polygonscan.com",
-          "isEnabled": true,
+          "name": "Base Goerli",
+          "chainId": "84531",
+          "rpcUrl": "https://goerli.base.org",
+          "explorerUrl": "https://goerli.basescan.org",
+          "isEnabled": false,
           "shortName": "",
           "currencySymbol": "",
           "testnet": false
         },
         {
-          "name": "BSC",
-          "chainId": "56",
-          "rpcUrl": "https://bsc-dataseed.binance.org",
-          "explorerUrl": "https://bscscan.com",
-          "isEnabled": true,
+          "name": "Gnosis Chain",
+          "chainId": "100",
+          "rpcUrl": "https://rpc.gnosischain.com",
+          "explorerUrl": "https://gnosisscan.io",
+          "isEnabled": false,
           "shortName": "",
           "currencySymbol": "",
           "testnet": false
         },
         {
-          "name": "Base",
-          "chainId": "8453",
-          "rpcUrl": "https://mainnet.base.org",
-          "explorerUrl": "https://basescan.org",
-          "isEnabled": true,
+          "name": "zkSync Era",
+          "chainId": "324",
+          "rpcUrl": "https://mainnet.era.zksync.io",
+          "explorerUrl": "https://explorer.zksync.io",
+          "isEnabled": false,
           "shortName": "",
           "currencySymbol": "",
           "testnet": false
         },
         {
-          "name": "Optimism",
-          "chainId": "10",
-          "rpcUrl": "https://mainnet.optimism.io",
-          "explorerUrl": "https://optimistic.etherscan.io",
-          "isEnabled": true,
+          "name": "Linea",
+          "chainId": "59144",
+          "rpcUrl": "https://rpc.linea.build",
+          "explorerUrl": "https://lineascan.build",
+          "isEnabled": false,
           "shortName": "",
           "currencySymbol": "",
           "testnet": false
         },
         {
-          "name": "Arbitrum",
-          "chainId": "42161",
-          "rpcUrl": "https://arb1.arbitrum.io/rpc",
-          "explorerUrl": "https://arbiscan.io",
-          "isEnabled": true,
-          "shortName": "",
-          "currencySymbol": "",
-          "testnet": false
-        },
-        {
-          "name": "Avalanche",
-          "chainId": "43114",
-          "rpcUrl": "https://api.avax.network/ext/bc/C/rpc",
-          "explorerUrl": "https://snowtrace.io",
-          "isEnabled": true,
-          "shortName": "",
-          "currencySymbol": "",
-          "testnet": false
-        },
-        {
-          "name": "Fantom",
-          "chainId": "250",
-          "rpcUrl": "https://rpcapi.fantom.network",
-          "explorerUrl": "https://ftmscan.com",
-          "isEnabled": true,
+          "name": "Scroll",
+          "chainId": "534352",
+          "rpcUrl": "https://rpc.scroll.io",
+          "explorerUrl": "https://scrollscan.com",
+          "isEnabled": false,
           "shortName": "",
           "currencySymbol": "",
           "testnet": false
         }
       ]
     },
+    "branding": {
+      "title": "QUICKTOKEN DEMO // TESTNET LIVE DEPLOYMENTS "
+    },
+    "theme": "dark",
     "security": {
       "whitelistEnabled": true,
-      "lastWhitelistUpdate": 1744918301929
+      "lastWhitelistUpdate": 1744748341560
     }
   },
   "whitelist": {
@@ -195,24 +196,45 @@
           "owner",
           "admin"
         ],
-        "addedAt": 1744918301929
+        "addedAt": 1744748341560,
+        "id": "19a6a6d3-f4c3-42b1-a44b-c490844cea22"
       },
       {
         "address": "0xae179f858ed23fa6a0246b1ed2f789f5d1b1b1b5",
-        "label": "Admin",
+        "label": "Owner",
+        "permissions": [
+          "owner",
+          "admin"
+        ],
+        "addedAt": 1744748341560,
+        "id": "ec2cc3dc-be27-4d54-89a1-e19e26a0db3b"
+      },
+      {
+        "address": "0xe70e86777df892d8227261cceea349a2872af4cc",
+        "label": "localtest002",
         "permissions": [
           "admin"
         ],
-        "addedAt": 1744918301929
+        "addedAt": 1744748341560,
+        "id": "a5fad9c2-8a42-423b-a672-55a3b29016b5"
+      },
+      {
+        "address": "0xe35d1d69b4a85f630325ee5ad11de83eefa43feb",
+        "label": "localtest004",
+        "permissions": [
+          "admin"
+        ],
+        "addedAt": 1744748341560,
+        "id": "96e8a816-cc56-447b-b1f9-b38ffb2b9b20"
       }
     ],
     "ownerAddress": "0xc94d6e57d9b2d65f5ebeec12ee3cf653c4390862",
-    "lastModified": 1744918301929,
+    "lastModified": 1744748341560,
     "whitelistEnabled": true
   },
   "meta": {
     "version": "1.0.0",
-    "exportedAt": 1744918305774,
+    "exportedAt": 1744963395695,
     "exportedBy": "0xc94d6e57d9b2d65f5ebeec12ee3cf653c4390862"
   }
 }

@@ -125,17 +125,14 @@ Follow these steps carefully to set up and deploy your QuickToken dashboard.
         3.  Import the Git repository you just pushed to.
         4.  Vercel should automatically detect it as a Next.js project.
         5.  Configure the **Root Directory** setting to be `admin-dashboard`.
-        6.  **Environment Variables:**
-            *   You **MUST** add an environment variable named `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`.
-            *   Obtain your Project ID from [WalletConnect Cloud](https://cloud.walletconnect.com/).
-            *   This ID is necessary for the dashboard to connect with various wallets, especially mobile ones.
+        6.  **Environment Variables:** No specific environment variables are required for this core version of the dashboard to function. It connects directly using browser wallet extensions.
         7.  Click "Deploy".
     *   Vercel will build and deploy your dashboard. Any future pushes to your connected Git branch will automatically trigger redeployments.
 
 9.  **Verify Deployment:**
     *   Access the URL provided by Vercel.
     *   You should see your configured dashboard, **not** the Setup Wizard.
-    *   Connect your wallet and test functionality.
+    *   Connect your **desktop browser wallet extension** (e.g., MetaMask, Coinbase Wallet) and test functionality.
 
 ---
 
